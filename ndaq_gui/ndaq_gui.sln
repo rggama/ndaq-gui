@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 10.00
 # Visual C++ Express 2008
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ndaq_gui", "ndaq_gui\ndaq_gui.vcproj", "{C65A2690-24DE-4658-9F3E-2810DEE81F94}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ndaq_gui", "ndaq_gui.vcproj", "{C65A2690-24DE-4658-9F3E-2810DEE81F94}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
