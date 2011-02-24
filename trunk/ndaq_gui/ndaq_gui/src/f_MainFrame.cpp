@@ -651,7 +651,8 @@ bool MainFrame::Update(){
 		if(fSave->GetState() != kButtonUp){
 			//Setting Filenames
 			SetFilename(setts->GetChanConfig(), namevector, filename, suffix);
-			SaveWave(namevector, setts->GetChanTotal(), Buffer);
+			//SaveWave(namevector, setts->GetChanTotal(), Buffer);
+			SaveCal(namevector, setts->GetChanTotal(), Buffer);
 		}
 
 		//SAVE TABLE

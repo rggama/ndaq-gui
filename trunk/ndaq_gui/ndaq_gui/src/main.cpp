@@ -12,6 +12,7 @@
 #define	_CRT_SECURE_NO_WARNINGS 1
 
 #include "main.h"
+//#include <conio.h>	//for getch() in a test procedure below.
 
 //bool ThreadON1 = false;
 
@@ -85,6 +86,7 @@ Int_t Thread::Threadstop()
 
 int main(int argc, char **argv) {
 	
+	
 	TApplication theApp("App", &argc, argv);
 
 	if (gROOT->IsBatch()) {
@@ -95,6 +97,32 @@ int main(int argc, char **argv) {
 	new Thread();
 
 	theApp.Run();
+	
+
+	/*
+	signed char data[128];
+	signed char *dataptr = &data[0];
+	signed char *aptr;
+	signed char *bptr;
+
+	aptr = dataptr;
+
+	for (unsigned char i=0; i<128; i++)
+		*dataptr++ = i;
+	
+	bptr = dataptr;
+
+	printf("delta: %d\n", bptr-aptr);
+
+	//dataptr = &data[0];
+	//dataptr-=128;
+	dataptr-=(bptr-aptr);
+
+	for (unsigned char i=0; i<128; i++)
+		printf("data: %d\n", *dataptr++);
+
+	getch();
+	*/
 
 	return 0;
 }
