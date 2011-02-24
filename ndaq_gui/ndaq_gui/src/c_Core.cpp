@@ -85,7 +85,7 @@ void Core::SetRun(bool state)
 			if ((i%2) == 0) n_btst = n_btst<<1; //sweeping 4 bits var.
 		}
 
-		fmpd0->Write(0x80,adc_pwdn);	//ADCs Power down
+		fmpd0->Write(0x80, adc_pwdn);	//ADCs Power down
 		
 		fmpd0->clearBufferRX();			//Clear SOFTWARE RX Buffer
 		//fmpd0->Write(0xAB,0x55);		//Reset 63488b counter
@@ -119,7 +119,7 @@ unsigned int Core::Acq(unsigned char *Buffer)
 	if(Size > BLOCK_SIZE-1){
 			//fmpd0->Write(0xAB, 0x55);	//Resets TX INTERFACE's Byte Counter
 
-			fmpd0->Read(/*(unsigned char *)*/Buffer, BytesRead, Size);
+			fmpd0->Read(/*(unsigned char *)*/Buffer, BytesRead, BLOCK_SIZE /*Size*/);
 			
 			return 1; //(unsigned int)Size;
 	}
