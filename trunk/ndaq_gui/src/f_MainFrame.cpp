@@ -593,8 +593,12 @@ bool MainFrame::Update(){
 	event_count = core->Acq((unsigned char *)Buffer);
 
 	if ( event_count > 0 ) {
+	
+		//printf("0x%0.2X%0.2X%0.2X%0.2X\r", (unsigned char)*(Buffer+3), (unsigned char)*(Buffer+2), (unsigned char)*(Buffer+1), (unsigned char)*(Buffer+0));
 
-		event_count = MAX_EVENTS;
+		printf("%0.4f\r", (((unsigned char)*(Buffer+1)*256)+(unsigned char)*(Buffer+0))*0.082);
+		
+			event_count = MAX_EVENTS;
 
 		totalEvents=totalEvents+event_count;
 		etime = ((int)time(NULL)-t_zero);
