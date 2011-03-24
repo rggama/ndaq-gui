@@ -483,6 +483,7 @@ void MainFrame::SettingsUpdate()
 		printf("%s\n", bptr);
 		bptr+=(strlen(bptr)+1);
 	}
+	printf("\n\n");
 }
 
 void MainFrame::HandleComboTri()
@@ -575,6 +576,7 @@ bool MainFrame::Update(){
 
 	signed char Buffer[BUFFER];
 	unsigned int event_count=0;
+	unsigned int block_size=0;
 
 	//float x[EVENT_SIZE]/*, yCAL[EVENT_SIZE]*/;
 	Int_t x[EVENT_SIZE];
@@ -590,27 +592,27 @@ bool MainFrame::Update(){
 
 	/********************************************************************************************/
 
-	event_count = core->Acq((unsigned char *)Buffer);
+	block_size = core->Acq((unsigned char *)Buffer);
 
-	if ( event_count > 0 ) {
+	if ( block_size > 0 ) {
 	
 		//printf("0x%0.2X%0.2X%0.2X%0.2X\r", (unsigned char)*(Buffer+3), (unsigned char)*(Buffer+2), (unsigned char)*(Buffer+1), (unsigned char)*(Buffer+0));
-
-		printf("%0.4f\r", (((unsigned char)*(Buffer+1)*256)+(unsigned char)*(Buffer+0))*0.082);
 		
-			event_count = MAX_EVENTS;
+		printf("From STOP:%u - Time:%0.3fns    \r", ((unsigned char)*(Buffer+3)&0x1C)>>2, (((unsigned char)*(Buffer+1)*256)+(unsigned char)*(Buffer+0))*0.200);
+		
+		event_count = block_size/4;
 
 		totalEvents=totalEvents+event_count;
 		etime = ((int)time(NULL)-t_zero);
 		
 		if (etime > 0)
-			fNumRxRate->SetNumber((Double_t) (((totalEvents*(EVENT_SIZE))/etime)/1024) );
+			fNumRxRate->SetNumber((Double_t) (((totalEvents*(4/*EVENT_SIZE*/))/etime)/1024) );
 
 		fNumEvents->SetIntNumber(totalEvents);
 
 		//fNumCounter->SetIntNumber(dcounter);
 
-		if(fComboGraph->GetSelected() > 0){
+		if(0/*fComboGraph->GetSelected() > 0*/){
 				
 			switch(fComboGraph->GetSelected()){
 			//posicao
@@ -656,7 +658,8 @@ bool MainFrame::Update(){
 			//Setting Filenames
 			SetFilename(setts->GetChanConfig(), namevector, filename, suffix);
 			//SaveWave(namevector, setts->GetChanTotal(), Buffer);
-			SaveCal(namevector, setts->GetChanTotal(), Buffer);
+			//SaveCal(namevector, setts->GetChanTotal(), Buffer);
+			SaveTDC(namevector, block_size, (unsigned char *)Buffer);
 		}
 
 		//SAVE TABLE
