@@ -59,6 +59,36 @@ void SaveWave(char *namevector, unsigned char t_channels, signed char *buffer){
 	}
 }
 
+void SaveTDC(char *namevector, unsigned int block_size, unsigned char *buffer){
+	
+	FILE *file;
+	
+	//if (t_channels == 0) return;
+
+	//for(unsigned char c=0;c<t_channels;c++){
+	
+		//printf("\n--start %s\n\n", namevector);
+		file = fopen(namevector, "a+t");
+
+	//if ((config & btst) == btst)
+		//line
+		for(unsigned int i=0;i<block_size;i+=4){
+			//column
+			//for(unsigned int j=i;j<(EVENT_SIZE+i);j++){
+			
+				//Save all columns for that line
+				//printf("%u\t", j);
+				fprintf(file, "%0.3f\n", ((buffer[i+1]<<8)+buffer[i])*0.200);
+			//}
+			//printf("\n");
+			//fprintf(file, "\n");
+		}
+		//printf("\n--end %s\n\n", namevector);
+		fclose(file);
+		//namevector+=(strlen(namevector)+1);
+	//}	
+}
+
 void SaveCal(char *namevector, unsigned char t_channels, signed char *buffer){
 	
 	FILE *file;
