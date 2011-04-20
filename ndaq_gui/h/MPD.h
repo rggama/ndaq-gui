@@ -22,6 +22,7 @@ public:
 	int SetBlock(unsigned int block);
 	int SetFlowControl(void);
 	int Write(int addr, unsigned char data);
+	int WriteB(unsigned char data);
 	int Read(unsigned char *data,DWORD &BytesR, DWORD size);
 	void reset();
 	bool isConnected();

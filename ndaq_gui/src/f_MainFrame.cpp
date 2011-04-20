@@ -592,7 +592,8 @@ bool MainFrame::Update(){
 
 	/********************************************************************************************/
 
-	event_count = core->Acq((unsigned char *)Buffer);
+	if (core->GetRun()) core->Loopback();
+	//event_count = core->Acq((unsigned char *)Buffer);
 
 	if ( event_count > 0 ) {
 

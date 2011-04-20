@@ -66,7 +66,7 @@ void Core::SetRun(bool state)
 	
 	//Start
 	if(state){
-		fmpd0->Write(0xAA,0x55);
+		////fmpd0->Write(0xAA,0x55);
 
 		//fmpd0->Write(0x90,0x00);		//'BCOUNT' Low
 		//fmpd0->Write(0x91,0x1F);		//'BCOUNT' High
@@ -85,19 +85,19 @@ void Core::SetRun(bool state)
 			if ((i%2) == 0) n_btst = n_btst<<1; //sweeping 4 bits var.
 		}
 
-		fmpd0->Write(0x80, adc_pwdn);	//ADCs Power down
+		////fmpd0->Write(0x80, adc_pwdn);	//ADCs Power down
 		
 		fmpd0->clearBufferRX();			//Clear SOFTWARE RX Buffer
 		//fmpd0->Write(0xAB,0x55);		//Reset 63488b counter
-		fmpd0->Write(0x82,lc_config);	//Configure Channels Readout
-		fmpd0->Write(0x81,0x04);		//Start Readout FSM
+		////fmpd0->Write(0x82,lc_config);	//Configure Channels Readout
+		////fmpd0->Write(0x81,0x04);		//Start Readout FSM
 	//Stop
 	}else{
-		fmpd0->Write(0x81,0);			// Stop Readout FSM
+		////fmpd0->Write(0x81,0);			// Stop Readout FSM
 
-		fmpd0->clearBufferRX();			//Clear SOFTWARE RX Buffer
+		////fmpd0->clearBufferRX();			//Clear SOFTWARE RX Buffer
 
-		fmpd0->Write(0x80,0x0F);		//Power Down ALL ADCs
+		////fmpd0->Write(0x80,0x0F);		//Power Down ALL ADCs
 	}	
 }
 
@@ -127,6 +127,34 @@ unsigned int Core::Acq(unsigned char *Buffer)
 	return 0;
 }
 
+unsigned char counter = 0;
+void Core::Loopback(void)
+{
+	
+	unsigned long BytesRead = 0;
+	unsigned long Size = 0;
+	unsigned char Buffer[20];
+	
+	fmpd0->WriteB(counter);
+	fmpd0->WriteB(255-counter);
+	counter++;
+
+	while(Size < 2)
+	{
+		Size=fmpd0->GetSize();
+		if (1) printf("Buffer Size: %u\r", Size);
+	}
+
+	if(Size > 1){
+
+			fmpd0->Read(/*(unsigned char *)*/Buffer, BytesRead, 2);
+			
+			printf("\n");
+			printf("Loopback: %u, %u\n", Buffer[0], Buffer[1]);
+	}
+
+
+}
 unsigned char Core::MapChannels(unsigned char config, unsigned char *channel){
 	
 	unsigned char pos=0;

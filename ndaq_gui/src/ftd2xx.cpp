@@ -83,8 +83,8 @@ int CloseFtd(int i)
 int WriteFtd(int i, unsigned char data)
 {
 	FT_STATUS	ftStatus;
-	DWORD buffersize = 1;
-	DWORD 	dwBytesWritten;
+	DWORD		buffersize = 1;
+	DWORD		dwBytesWritten;
 
 	if((ftStatus = FT_Write(ftHandle[i], &data, buffersize, &dwBytesWritten)) != FT_OK)
 		return 0;
@@ -94,8 +94,9 @@ int WriteFtd(int i, unsigned char data)
 
 int GetSIZE(int i)
 {
-	DWORD	dwRxSize = 0;
-	FT_STATUS ftStatus;
+	DWORD		dwRxSize = 0;
+	FT_STATUS	ftStatus;
+	
 	ftStatus = FT_GetQueueStatus(ftHandle[i], &dwRxSize);
 	
 	if (ftStatus != FT_OK)
