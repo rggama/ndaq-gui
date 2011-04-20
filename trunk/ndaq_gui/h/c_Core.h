@@ -30,6 +30,7 @@ public:
 	void ToggleRun();
 	unsigned int Acq(unsigned char *Buffer);
 	unsigned char MapChannels(unsigned char config, unsigned char *channel);
+	void Loopback(void);
 
 	//ClassDef(Core,0);
 };

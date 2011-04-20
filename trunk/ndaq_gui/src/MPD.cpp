@@ -61,10 +61,17 @@ int MPD::SetFlowControl(void)
 // Write function
 int MPD::Write(int addr, unsigned char data)
 {
-	WriteFtd(numDev,addr);	// Endereço
+	WriteFtd(numDev, addr);	// Endereço
 	WriteFtd(numDev, data);	// dado
 	return 1;
 }
+// Write function
+int MPD::WriteB(unsigned char data)
+{
+	WriteFtd(numDev, data);	// dado
+	return 1;
+}
+
 // Read function
 int MPD::Read(unsigned char *data, DWORD &BytesR, DWORD size)
 {
