@@ -59,67 +59,102 @@ void SaveWave(char *namevector, unsigned char t_channels, signed char *buffer){
 	}
 }
 
-void SaveTDC(char *namevector, unsigned int block_size, unsigned char *buffer){
+unsigned int SaveCal(char *namevector, unsigned char t_channels, signed char *buffer){
 	
 	FILE *file;
-	
-	//if (t_channels == 0) return;
-
-	//for(unsigned char c=0;c<t_channels;c++){
-	
-		//printf("\n--start %s\n\n", namevector);
-		file = fopen(namevector, "a+t");
-
-	//if ((config & btst) == btst)
-		//line
-		for(unsigned int i=0;i<block_size;i+=4){
-			//column
-			//for(unsigned int j=i;j<(EVENT_SIZE+i);j++){
-			
-				//Save all columns for that line
-				//printf("%u\t", j);
-				fprintf(file, "%0.3f\n", ((buffer[i+1]<<8)+buffer[i])*0.200);
-			//}
-			//printf("\n");
-			//fprintf(file, "\n");
-		}
-		//printf("\n--end %s\n\n", namevector);
-		fclose(file);
-		//namevector+=(strlen(namevector)+1);
-	//}	
-}
-
-void SaveCal(char *namevector, unsigned char t_channels, signed char *buffer){
-	
-	FILE *file;
-	
-	//if (t_channels == 0) return;
+	unsigned int counter = 0;
 
 	for(unsigned char c=0;c<t_channels;c++){
 	
-		//printf("\n--start %s\n\n", namevector);
-		//file = fopen(namevector, "a+t");
 
-	//if ((config & btst) == btst)
+		file = fopen(namevector, "a+t");
+
 		//line
 		for(unsigned int i=(c*EVENT_SIZE);i<BLOCK_SIZE;i+=(EVENT_SIZE*t_channels)){
-			//column
-			//for(unsigned int j=i;j<(EVENT_SIZE+i);j++){
-			
-				//Save all columns for that line
-				//printf("%u\t", j);
-				//fprintf(file, "%d\t", GetHigher(buffer, i));
-				GetNHigher(buffer, i);
 
-			//}
-			//printf("\n");
-			//fprintf(file, "\n");
+			fprintf(file, "%d\n", buffer[i+50]);
+			counter++;
 		}
-		//printf("\n--end %s\n\n", namevector);
-		//fclose(file);
+		fclose(file);
 		namevector+=(strlen(namevector)+1);
 	}
+	
+	return counter;
 }
+
+unsigned int SaveTable(char *namevector, unsigned char t_channels, signed char *buffer){
+	
+	FILE *file;
+	unsigned int counter = 0;
+	
+	for(unsigned char c=0;c<t_channels;c++){
+	
+		file = fopen(namevector, "a+t");
+	
+		//line
+		for(unsigned int i=(c*EVENT_SIZE);i<BLOCK_SIZE;i+=(EVENT_SIZE*t_channels)){
+			
+			fprintf(file, "%0.2f\n", GetNAmplitude(buffer, i));
+			printf("Amp: %0.2f\r", GetNAmplitude(buffer, i));
+			counter++;
+
+		}
+		fclose(file);
+		namevector+=(strlen(namevector)+1);
+	}
+	
+	return counter;
+}
+
+
+/**************************************************************************************************************************/
+
+double GetBaseline(signed char *buffer, unsigned int w)
+{
+	double acc=0;
+	
+	buffer = &buffer[w]+2;
+
+	for(unsigned int i=0; i<BASEINT; i++)		
+		acc+=*buffer++;
+
+	return acc/32;
+}
+
+double GetPAmplitude(signed char *buffer, unsigned int w)
+{
+	double base=0;	
+	signed char *startptr = &buffer[w]+BASEINT+2;	//+size_of_GetBaseline();
+	signed char *ppeakptr = NULL;
+	signed char p_peak = 0;
+
+	base = GetBaseline(buffer, w);
+
+	if ((ppeakptr = GetPPeak(buffer, startptr, EVENT_SIZE-(BASEINT+2))) != NULL)
+		p_peak = *(buffer = ppeakptr);
+	else
+		return 0;
+
+	return p_peak - base;
+}
+
+double GetNAmplitude(signed char *buffer, unsigned int w)
+{
+	double base=0;	
+	signed char *startptr = &buffer[w]+BASEINT+2;	//+size_of_GetBaseline();
+	signed char *npeakptr = NULL;
+	signed char n_peak = 0;
+
+	base = GetBaseline(buffer, w);
+
+	if ((npeakptr = GetNPeak(buffer, startptr, EVENT_SIZE-(BASEINT+2))) != NULL)
+		n_peak = *(buffer = npeakptr);
+	else
+		return 0;
+
+	return n_peak - base;
+}
+/**************************************************************************************************************************/
 
 signed char *GetPPeak(signed char *buffer, signed char *addr, unsigned int size)
 {
@@ -157,6 +192,8 @@ signed char *GetNPeak(signed char *buffer, signed char *addr, unsigned int size)
 	return n_peakptr;
 	
 }
+
+/**************************************************************************************************************************/
 
 signed char GetPHigher(signed char *buffer, unsigned int w){
 	
@@ -299,6 +336,8 @@ signed char GetNHigher(signed char *buffer, unsigned int w){
 	
 	return f;
 }
+
+/**************************************************************************************************************************/
 
 //seems useless :(
 void SaveColumn (unsigned char t_channels){
