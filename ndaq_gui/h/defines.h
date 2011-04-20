@@ -11,6 +11,8 @@
 #define BLOCK_SIZE		63488 /*7936 - 63488*/
 #define	MAX_EVENTS		(BLOCK_SIZE / EVENT_SIZE) 
 
+#define BASEINT			EVENT_SIZE/4
+
 #define TIMEBIN			8.0f						//ns
 
 #define A				1.0f

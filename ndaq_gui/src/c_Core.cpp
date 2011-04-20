@@ -90,12 +90,10 @@ void Core::SetRun(bool state)
 		fmpd0->clearBufferRX();			//Clear SOFTWARE RX Buffer
 		//fmpd0->Write(0xAB,0x55);		//Reset 63488b counter
 		fmpd0->Write(0x82,lc_config);	//Configure Channels Readout
-		fmpd0->Write(0x81,0x08);		//Start Readout FSM
-		fmpd0->Write(0xC0,0x01);
+		fmpd0->Write(0x81,0x04);		//Start Readout FSM
 	//Stop
 	}else{
 		fmpd0->Write(0x81,0);			// Stop Readout FSM
-		fmpd0->Write(0xC0,0);
 
 		fmpd0->clearBufferRX();			//Clear SOFTWARE RX Buffer
 
@@ -113,21 +111,17 @@ unsigned int Core::Acq(unsigned char *Buffer)
 {
 	unsigned long BytesRead = 0;
 	unsigned long Size = 0;
-	unsigned long ReadSize = 0;
 
 	Size=fmpd0->GetSize();
 	
 	if (DEBUG) printf("Buffer Size: %u\n", Size);
 
-	if(Size > 4 /*BLOCK_SIZE-1*/){
+	if(Size > BLOCK_SIZE-1){
 			//fmpd0->Write(0xAB, 0x55);	//Resets TX INTERFACE's Byte Counter
 
-			ReadSize = Size/4;
-			ReadSize = ReadSize*4;
-
-			fmpd0->Read(/*(unsigned char *)*/Buffer, BytesRead, ReadSize /*BLOCK_SIZE*/ /*Size*/);
+			fmpd0->Read(/*(unsigned char *)*/Buffer, BytesRead, BLOCK_SIZE /*Size*/);
 			
-			return (unsigned int)BytesRead; //1
+			return 1; //(unsigned int)Size;
 	}
 
 	return 0;
