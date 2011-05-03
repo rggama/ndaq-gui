@@ -8,6 +8,7 @@
 //=============================================================================
 #include "defines.h"
 #include <stdio.h>
+#include <conio.h>
 
 #include "c_Core.h"
 
@@ -131,28 +132,42 @@ unsigned char counter = 0;
 void Core::Loopback(void)
 {
 	
-	unsigned long BytesRead = 0;
-	unsigned long Size = 0;
-	unsigned char Buffer[20];
+	unsigned long	BytesRead = 0;
+	unsigned long	Size = 0;
+	unsigned char	Buffer[20];
+	unsigned char	t=0;
+	unsigned int	sum = 0; 
 	
 	fmpd0->WriteB(counter);
 	fmpd0->WriteB(255-counter);
 	counter++;
 
-	while(Size < 2)
+	while((Size < 2) && (t < 100))
 	{
 		Size=fmpd0->GetSize();
-		if (1) printf("Buffer Size: %u\r", Size);
+		if (1) printf("Buffer Size: %u - try: %u\r", Size, t);
+		//t++;
+		//Sleep(1);
 	}
-
+	
+	//printf("\n");
+	
 	if(Size > 1){
-
 			fmpd0->Read(/*(unsigned char *)*/Buffer, BytesRead, 2);
+			//fmpd0->clearBufferRX();
 			
 			printf("\n");
-			printf("Loopback: %u, %u\n", Buffer[0], Buffer[1]);
-	}
+			printf("%u: Loopback: %u, %u\n", counter, Buffer[0], Buffer[1]);
+			
+			sum = (Buffer[0] + Buffer[1]);
 
+			if((sum > 0) && (sum != 256))
+			{
+				printf("Error!\n");
+				getch();
+			}
+	}
+	//Sleep(30);
 
 }
 unsigned char Core::MapChannels(unsigned char config, unsigned char *channel){
