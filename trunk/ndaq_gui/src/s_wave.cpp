@@ -12,6 +12,8 @@
 //passo = EVENT_SIZE * TOTAL_CHANNELS
 //start = (mapchannels-1) * EVENT_SIZE
 
+/**************************************************************************************************************************/
+
 void SetFilename(unsigned char config, char *namevector, char *filename, char *suffix){
 	unsigned char btst = 0x01;
 	
@@ -29,7 +31,24 @@ void SetFilename(unsigned char config, char *namevector, char *filename, char *s
 	}
 }
 
-void SaveWave(char *namevector, unsigned char t_channels, signed char *buffer){
+/**************************************************************************************************************************/
+
+signed int GetSample(signed char *buffer, signed char *addr)
+{
+	signed int temp = 0;
+
+
+	temp=_J_(buffer = addr);
+	
+	return temp>>6;
+}
+
+/**************************************************************************************************************************/
+
+//cada linha é um evento ou waveform
+//colunas = EVENT_SIZE
+//linhas = quantidade de eventos ou waveforms
+void SaveWave(char *namevector, unsigned char t_channels, unsigned int block_size, signed char *buffer){
 	
 	FILE *file;
 	
@@ -42,13 +61,13 @@ void SaveWave(char *namevector, unsigned char t_channels, signed char *buffer){
 
 	//if ((config & btst) == btst)
 		//line
-		for(unsigned int i=(c*EVENT_SIZE);i<BLOCK_SIZE;i+=(EVENT_SIZE*t_channels)){
+		for(unsigned int i=(c*(EVENT_SIZE*_step_));i<block_size;i+=((EVENT_SIZE*_step_)*t_channels)){
 			//column
-			for(unsigned int j=i;j<(EVENT_SIZE+i);j++){
+			for(unsigned int j=i;j<((EVENT_SIZE*_step_)+i);j+=_step_){
 			
 				//Save all columns for that line
 				//printf("%u\t", j);
-				fprintf(file, "%d\t", buffer[j]);
+				fprintf(file, "%d\t", GetSample(buffer, &buffer[j]));
 			}
 			//printf("\n");
 			fprintf(file, "\n");
@@ -59,7 +78,7 @@ void SaveWave(char *namevector, unsigned char t_channels, signed char *buffer){
 	}
 }
 
-unsigned int SaveCal(char *namevector, unsigned char t_channels, signed char *buffer){
+unsigned int SaveCal(char *namevector, unsigned char t_channels, unsigned int block_size, signed char *buffer){
 	
 	FILE *file;
 	unsigned int counter = 0;
@@ -70,32 +89,40 @@ unsigned int SaveCal(char *namevector, unsigned char t_channels, signed char *bu
 		file = fopen(namevector, "a+t");
 
 		//line
-		for(unsigned int i=(c*EVENT_SIZE);i<BLOCK_SIZE;i+=(EVENT_SIZE*t_channels)){
-
-			fprintf(file, "%d\n", buffer[i+50]);
-			counter++;
-		}
-		fclose(file);
-		namevector+=(strlen(namevector)+1);
-	}
-	
-	return counter;
-}
-
-unsigned int SaveTable(char *namevector, unsigned char t_channels, signed char *buffer){
-	
-	FILE *file;
-	unsigned int counter = 0;
-	
-	for(unsigned char c=0;c<t_channels;c++){
-	
-		file = fopen(namevector, "a+t");
-	
-		//line
-		for(unsigned int i=(c*EVENT_SIZE);i<BLOCK_SIZE;i+=(EVENT_SIZE*t_channels)){
+		for(unsigned int i=(c*(EVENT_SIZE*_step_));i<block_size;i+=((EVENT_SIZE*_step_)*t_channels)){
 			
-			fprintf(file, "%0.2f\n", GetNAmplitude(buffer, i));
-			printf("Amp: %0.2f\r", GetNAmplitude(buffer, i));
+			fprintf(file, "%d\n", GetSample(buffer, &buffer[i+CAL_SMP*_step_]));
+			//printf("Raw: %d\r", GetSample(buffer, &buffer[i+CAL_SMP*_step_]));
+			counter++;
+		}
+		fclose(file);
+		namevector+=(strlen(namevector)+1);
+	}
+	
+	return counter;
+}
+
+unsigned int SavePTable(char *namevector, unsigned char t_channels, unsigned int block_size, signed char *buffer){
+	
+	FILE *file;
+	unsigned int counter = 0;
+	double base = 0;
+	double peak = 0;
+	double intg = 0;
+	
+	for(unsigned char c=0;c<t_channels;c++){
+	
+		file = fopen(namevector, "a+t");
+	
+		//line
+		for(unsigned int i=(c*(EVENT_SIZE*_step_));i<block_size;i+=((EVENT_SIZE*_step_)*t_channels)){
+		
+			peak = GetPPeak(buffer, i, PK_START, PK_END)*A+B;
+			base = GetBaseline(buffer, i)*A+B;
+			//intg = GetPInt(buffer, base, i, INT_START, INT_END)*A+B;
+
+			fprintf(file, "%0.2f\t%0.2f\n", base, (peak - (base)));
+			//printf("Base, Amp: %0.2f\t%0.2f\r", base, (peak - (base)));
 			counter++;
 
 		}
@@ -106,286 +133,154 @@ unsigned int SaveTable(char *namevector, unsigned char t_channels, signed char *
 	return counter;
 }
 
+unsigned int SaveNTable(char *namevector, unsigned char t_channels, unsigned int block_size, signed char *buffer){
+	
+	FILE *file;
+	unsigned int counter = 0;
+	double base = 0;
+	double peak = 0;
+	double intg = 0;
+	
+	for(unsigned char c=0;c<t_channels;c++){
+	
+		file = fopen(namevector, "a+t");
+	
+		//line
+		for(unsigned int i=(c*(EVENT_SIZE*_step_));i<block_size;i+=((EVENT_SIZE*_step_)*t_channels)){
+		
+			peak = GetNPeak(buffer, i, PK_START, PK_END)*A+B;
+			base = GetBaseline(buffer, i)*A+B;
+			//intg = GetPInt(buffer, base, i, INT_START, INT_END)*A+B;
+
+			fprintf(file, "%0.2f\t%0.2f\n", base, (peak - (base)));
+			//printf("Base, Amp: %0.2f\t%0.2f\r", base, (peak - (base)));
+			counter++;
+
+		}
+		fclose(file);
+		namevector+=(strlen(namevector)+1);
+	}
+	
+	return counter;
+}
 
 /**************************************************************************************************************************/
 
 double GetBaseline(signed char *buffer, unsigned int w)
 {
 	double acc=0;
-	
-	buffer = &buffer[w]+2;
 
-	for(unsigned int i=0; i<BASEINT; i++)		
-		acc+=*buffer++;
 
-	return acc/32;
-}
+	for(unsigned int i=0; i<(BASEINT*_step_); i+=_step_)		
+		acc+=GetSample(buffer, &buffer[w+i+(BASEOFS*2)]);
 
-double GetPAmplitude(signed char *buffer, unsigned int w)
-{
-	double base=0;	
-	signed char *startptr = &buffer[w]+BASEINT+2;	//+size_of_GetBaseline();
-	signed char *ppeakptr = NULL;
-	signed char p_peak = 0;
-
-	base = GetBaseline(buffer, w);
-
-	if ((ppeakptr = GetPPeak(buffer, startptr, EVENT_SIZE-(BASEINT+2))) != NULL)
-		p_peak = *(buffer = ppeakptr);
-	else
-		return 0;
-
-	return p_peak - base;
-}
-
-double GetNAmplitude(signed char *buffer, unsigned int w)
-{
-	double base=0;	
-	signed char *startptr = &buffer[w]+BASEINT+2;	//+size_of_GetBaseline();
-	signed char *npeakptr = NULL;
-	signed char n_peak = 0;
-
-	base = GetBaseline(buffer, w);
-
-	if ((npeakptr = GetNPeak(buffer, startptr, EVENT_SIZE-(BASEINT+2))) != NULL)
-		n_peak = *(buffer = npeakptr);
-	else
-		return 0;
-
-	return n_peak - base;
-}
-/**************************************************************************************************************************/
-
-signed char *GetPPeak(signed char *buffer, signed char *addr, unsigned int size)
-{
-	signed char p_peak = -128; //Minimum for a signed char.
-	signed char *p_peakptr = NULL;
-	
-	
-	buffer = addr;
-
-	for(unsigned int i=0; i<size; i++)	
-		
-		if (*buffer++ > p_peak){
-			p_peak = *(buffer-1);
-			p_peakptr = (buffer-1);
-		}
-
-	return p_peakptr;
-}
-
-signed char *GetNPeak(signed char *buffer, signed char *addr, unsigned int size)
-{
-	signed char n_peak = 127; //Maximum for a signed char.
-	signed char *n_peakptr = NULL;
-	
-	
-	buffer = addr;
-
-	for(unsigned int i=0; i<size; i++)
-		
-		if (*buffer++ < n_peak){
-			n_peak = *(buffer-1);
-			n_peakptr = (buffer-1);
-		}
-
-	return n_peakptr;
-	
+	//printf("b: %0.5f\r", acc/BASEINT);
+	return acc/BASEINT;
 }
 
 /**************************************************************************************************************************/
 
-signed char GetPHigher(signed char *buffer, unsigned int w){
-	
-	signed char p_peak = 0;
-	signed char n_peak = 0;
-	signed char f = 0;
-	unsigned int filter_s = 3;
-	signed int acc = 0;
+signed int GetPPeak(signed char *buffer, unsigned int addr, unsigned char start, unsigned char end)
+{
+	signed int p_peak = -32768; //Minimum for a signed int.
+	signed int temp = 0;
 
-	signed char *startptr = &buffer[w];
-	signed char *ppeakptr = NULL;
-
-	if ((ppeakptr = GetPPeak(buffer, startptr, EVENT_SIZE)) != NULL)
-		p_peak = *(buffer = ppeakptr);
-	else
-		return 0;
-	//p_peak = *(buffer = ppeakptr = GetPPeak(buffer, startptr, EVENT_SIZE));
-
-	if ((buffer = GetNPeak(buffer, buffer, buffer-startptr)) != NULL)
-		n_peak = *buffer;
-	else
-		return 0;
-	//n_peak = *(buffer = GetNPeak(buffer, buffer, buffer-startptr));
-
-	//pulse is between 'ppeak' pointer and 'npeak' pointer whose is already stored at 'buffer' pointer.
-	
-	//printf("delta: %d\n", buffer-ppeakptr);
-	//for (unsigned int i=0; i<(buffer-ppeakptr); i++)
-	//	printf("count: %u", i);
-
-	/*
-	** Integrates sample[n+i] for filter_s iterations then
-	** divides the result by the numer of iterations and
-	** compares it to sample[n+i]. If yes, result is sample[n].
-	** Otherwise, result is zero. Where 'i' starts at the positive
-	** voltape peak plus one. Repeats the cycle for sample[n+i] 
-	** until 'i' reaches the negative voltage peak index minus 
-	** filter size. (filter_s).
-	**
-	*/
-	signed int size = (buffer-ppeakptr)-filter_s;
-
-	buffer=ppeakptr+1; //let's start at the pointer right after 'ppeak' pointer.
-	
-	printf("size: %d\n", size);
-
-	
-	if (size > 0) {	//do not let a negative size into for loop.
-
-		for(unsigned int i=0; i<size; i++){
+	for(unsigned char i=0; i<((end*_step_)-(start*_step_)); i+=_step_){	
 		
-			acc = 0;
+		temp = GetSample(buffer, &buffer[addr+(start*_step_)+i]);
 
-			for(unsigned int j=0; j<filter_s; j++)
-				acc+=*buffer++;
-		
-			buffer-=filter_s;
-		
-			//printf("Idx: %d - AdF: %d - Buf: %d\n", i, (acc/filter_s), *buffer);
-
-			if ((acc/filter_s) == *buffer++)
-				f = *(buffer-1);
-		}
+		if (temp > p_peak)
+			p_peak = temp;
 	}
-	
-	printf("PPk: %d\n", p_peak);
-	printf("NPk: %d\n", n_peak);
-	if (f != 0)
-		printf("Max: %d\n", f);
-	
-	return f;
+
+	//printf("p: %0.5d\r", p_peak);
+	return p_peak;
 }
 
-signed char GetNHigher(signed char *buffer, unsigned int w){
-	
-	signed char p_peak = 0;
-	signed char n_peak = 0;
-	signed char f = 0;
-	unsigned int filter_s = 3;
-	signed int acc = 0;
+signed int GetNPeak(signed char *buffer, unsigned int addr, unsigned char start, unsigned char end)
+{
+	signed int n_peak = 32767; //Maximum for a signed int.
+	signed int temp = 0;
 
-	signed char *startptr = &buffer[w];
-	signed char *npeakptr = NULL;
-
-	if ((npeakptr = GetNPeak(buffer, startptr, EVENT_SIZE)) != NULL)
-		n_peak = *(buffer = npeakptr);
-	else
-		return 0;
-
-	if ((buffer = GetPPeak(buffer, buffer, buffer-startptr)) != NULL)
-		p_peak = *buffer;
-	else
-		return 0;
-
-	//pulse is between 'npeak' pointer and 'ppeak' pointer whose is already stored at 'buffer' pointer.
-	
-	//printf("delta: %d\n", buffer-ppeakptr);
-	//for (unsigned int i=0; i<(buffer-ppeakptr); i++)
-	//	printf("count: %u", i);
-
-	/*
-	** Integrates sample[n+i] for filter_s iterations then
-	** divides the result by the numer of iterations and
-	** compares it to sample[n+i]. If yes, result is sample[n].
-	** Otherwise, result is zero. Where 'i' starts at the positive
-	** voltape peak plus one. Repeats the cycle for sample[n+i] 
-	** until 'i' reaches the negative voltage peak index minus 
-	** filter size. (filter_s).
-	**
-	*/
-	signed int size = (buffer-npeakptr)-filter_s;
-
-	buffer=npeakptr+1; //let's start at the pointer right after 'npeak' pointer.
-	
-	printf("size: %d\n", size);
-
-	
-	if (size > 0) {	//do not let a negative size into for loop.
-
-		for(unsigned int i=0; i<size; i++){
+	for(unsigned char i=0; i<((end*_step_)-(start*_step_)); i+=_step_){	
 		
-			acc = 0;
+		temp = GetSample(buffer, &buffer[addr+(start*_step_)+i]);
 
-			for(unsigned int j=0; j<filter_s; j++)
-				acc-=*buffer++;
-					
-			buffer-=filter_s;
-		
-			//printf("Idx: %d - AdF: %d - Buf: %d\n", i, (acc/filter_s), *buffer);
-
-			if ((acc/filter_s) == -(*buffer++))
-				f = *(buffer-1);
-		}
+		if (temp < n_peak)
+			n_peak = temp;
 	}
-	
-	printf("PPk: %d\n", p_peak);
-	printf("NPk: %d\n", n_peak);
-	if (f != 0)
-		printf("Max: %d\n", f);
-	
-	return f;
+
+	//printf("p: %0.5d\r", p_peak);
+	return n_peak;
 }
+
+double GetPInt(signed char *buffer, double base, unsigned int addr, unsigned char start, unsigned char end)
+{
+	double acc = 0;
+
+
+	for(unsigned char i=0; i<((end*_step_)-(start*_step_)); i+=_step_){	
+		
+		acc+= (GetSample(buffer, &buffer[addr+(start*_step_)+i]) - base);
+	}
+
+	printf("p: %0.7f\r", acc);
+
+	return acc;
+}
+
+
+//signed char *GetNPeak(signed char *buffer, signed char *addr, unsigned int size)
+//{
+//	signed char n_peak = 127; //Maximum for a signed char.
+//	signed char *n_peakptr = NULL;
+//	
+//	buffer = addr;
+//
+//	for(unsigned int i=0; i<size; i++)
+//		
+//		if (*buffer++ < n_peak){
+//			n_peak = *(buffer-1);
+//			n_peakptr = (buffer-1);
+//		}
+//
+//	return n_peakptr;
+//	
+//}
+
+/**************************************************************************************************************************/
 
 /**************************************************************************************************************************/
 
 //seems useless :(
-void SaveColumn (unsigned char t_channels){
-
-	//line
-	for(unsigned int i=0;i<EVENT_SIZE;i++){
-		//column
-		for(unsigned int j=(0*EVENT_SIZE)+i;j<BLOCK_SIZE;j+=(EVENT_SIZE*t_channels)){
-		
-			//Save those indexes, as a line. You've just saved all the first samples of all events(Waveforms)
-			printf("%u\t", j);
-		}
-		printf("\n");
-	}
-}
-
-/*
-	unsigned int eq = 0;
-	unsigned int gt = 0;
-	unsigned int lt = 0;
-
-	for(unsigned int i=0; i<EVENT_SIZE; i++)
-	
-		if(*++buffer == *(buffer-1))
-			eq++;
-		else if (*buffer > *(buffer-1))
-			gt++;
-		else if (*buffer < *(buffer-1))
-			lt++;
-
-	printf("eq: %d\n", eq);
-	printf("gt: %d\n", gt);
-	printf("lt: %d\n", lt);
-*/
-
-	/*
-	** Integrates everything then divide by iterations.
-	** Noise will be clearly noticed on result.
-	**
-
-	filter_s = 0;
-	for(unsigned int i=(riseidx+1); i<fallidx; i++){
-		acc+=*buffer++;
-		filter_s++;
-		printf("Idx: %d - Acc: %d - Buf: %d\n", i, acc, *buffer);
-
-	}
-
-	f = (acc/filter_s);
-	printf("AdF: %d\n", f);
-	*/
+//cada coluna é um evento
+//colunas = quantidade de eventos ou waveforms
+//linhas = EVENT_SIZE
+//void SaveColumn(char *namevector, unsigned char t_channels, unsigned int block_size, signed char *buffer){
+//
+//	FILE *file;
+//
+//	printf("block_size: %u\n", block_size);
+//
+//	for(unsigned char c=0;c<t_channels;c++){
+//	
+//		//printf("\n--start %s\n\n", namevector);
+//		file = fopen(namevector, "a+t");
+//		
+//		//line
+//		for(unsigned int i=0;i<EVENT_SIZE;i++){
+//			//column
+//			for(unsigned int j=(c*EVENT_SIZE)+i;j<block_size;j+=(EVENT_SIZE*t_channels)){
+//		
+//				//Save those indexes, as a line. You've just saved all the first samples of all events(Waveforms)
+//				//printf("%u\t", j);
+//				fprintf(file, "%d\t", buffer[j]);
+//			}
+//			//printf("\n");
+//			fprintf(file, "\n");
+//		}
+//		//printf("\n--end %s\n\n", namevector);
+//		fclose(file);
+//		namevector+=(strlen(namevector)+1);
+//	}
+//}

@@ -8,17 +8,37 @@
 #define HEADER_SIZE		0
 #define EVENT_SIZE		128							//Quantidade de samples por trigger
 //#define GROUP_SIZE		0
-#define BLOCK_SIZE		63488 /*7936 - 63488*/
+#define BLOCK_SIZE		256 /*7936 - 63488*/
 #define	MAX_EVENTS		(BLOCK_SIZE / EVENT_SIZE) 
 
-#define BASEINT			EVENT_SIZE/4
+#define _step_			2
+
+#define CAL_SMP			40	//50
+
+#define BASEOFS			5
+#define BASEINT			10 //EVENT_SIZE/4
+
+//#define PK_START		46
+//#define PK_END		70
+#define PK_START		5
+#define PK_END			120
+
+#define INT_START		32
+#define INT_END			60
 
 #define TIMEBIN			8.0f						//ns
 
-#define A				1.0f
-#define B				0.0f
+//NDAQ-01-2010-ADC1 - 1 Vpp
+//#define A				1.2196f
+//#define B				-4.73032f
+
+//NDAQ-01-2010-ADC1 - 2 Vpp
+#define A				2.53037f
+#define B				-5.43545f
 
 #define c16E6			16<<20
 #define c16E4			16<<12
 #define c16E2			16<<4
+
+#define _J_(x)			(((*((x)+1)<<2)+*(x))<<6)
 /**/

@@ -97,7 +97,6 @@ int main(int argc, char **argv) {
 	new Thread();
 
 	theApp.Run();
-	
 
 	/*
 	signed char data[128];

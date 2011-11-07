@@ -49,7 +49,10 @@ void Core::Initialize()
 
 	fmpd0->SetLatency(16);
 
-	fmpd0->Write(0xAA, 0x55);		//Resets hardware
+	StopReadout();
+	WriteReg(0xAA, 0x55);		//Resets Vme FPGA
+	//WriteReg(0xAA, 0x55);		//Resets Vme FPGA
+	//WriteCore(0xAA,0x55);		//Resets Core FPGA
 }
 
 void Core::SetChannels(unsigned char c_config)
@@ -63,17 +66,50 @@ void Core::SetRun(bool state)
 	unsigned char n_btst = 0x01;
 	unsigned char adc_pwdn = 0x0F;
 
-	Run = state;
+	
 	
 	//Start
 	if(state){
-		////fmpd0->Write(0xAA,0x55);
+		//WriteReg(0xAA, 0x55);
+		
+		fmpd0->clearBufferRX();			//Clear SOFTWARE RX Buffer
 
-		//fmpd0->Write(0x90,0x00);		//'BCOUNT' Low
-		//fmpd0->Write(0x91,0x1F);		//'BCOUNT' High
+		//WriteCore(0x87, 0x01);			//ADC Power-up
+		WriteCore(0x77, 0x55);				//Th
+		
+		//WriteCore(0x89, 0x01);			//FIFO Reset Assert
+		//WriteCore(0x89, 0x00);			//FIFO Reset Deassert
+		//Sleep(20);
+		//WriteCore(0x91, 0x01);			//ACQ Enable
+		
+		WriteReg(0x80, 0x01);			//Vme Readout Enable
+		Run = true;
 
-		//fmpd0->Write(0xB0,0x00);		//C8 'WMAX' Low
-		//fmpd0->Write(0xB1,0x02);		//C8 'WMAX' High
+		 //if everything went well.
+	//Stop
+	}else{
+		//WriteCore(0x87, 0x00);			//ADC Power-down
+		//WriteCore(0x91, 0x00);			//ACQ Disable
+		
+		StopReadout();					//Vme Readout Disable
+		WriteReg(0xAA, 0x55);			//Resets Vme FPGA
+		Run = false; //if it really stopped.
+	}	
+}
+
+/*
+void Core::SetRun(bool state)
+{
+	unsigned char b_btst = 0x01;
+	unsigned char n_btst = 0x01;
+	unsigned char adc_pwdn = 0x0F;
+
+	
+	
+	//Start
+	if(state){
+		WriteCore(0xAA, 0x55);
+		WriteReg(0xAA, 0x55);
 
 		for(unsigned char i=1;i<9;i++)
 		{
@@ -89,9 +125,13 @@ void Core::SetRun(bool state)
 		////fmpd0->Write(0x80, adc_pwdn);	//ADCs Power down
 		
 		fmpd0->clearBufferRX();			//Clear SOFTWARE RX Buffer
-		//fmpd0->Write(0xAB,0x55);		//Reset 63488b counter
-		////fmpd0->Write(0x82,lc_config);	//Configure Channels Readout
-		////fmpd0->Write(0x81,0x04);		//Start Readout FSM
+
+		WriteCore(0x80,0x01);
+		WriteReg(0x80, 0x01);
+		//fmpd0->clearBufferRX();			//Clear SOFTWARE RX Buffer
+		Run = true;
+
+		 //if everything went well.
 	//Stop
 	}else{
 		////fmpd0->Write(0x81,0);			// Stop Readout FSM
@@ -99,76 +139,204 @@ void Core::SetRun(bool state)
 		////fmpd0->clearBufferRX();			//Clear SOFTWARE RX Buffer
 
 		////fmpd0->Write(0x80,0x0F);		//Power Down ALL ADCs
+		StopReadout();
+		WriteCore(0x80,0x00);
+		Run = false; //if it really stopped.
 	}	
 }
+*/
 
 void Core::ToggleRun()
 {
-	Run = !Run;
-	SetRun(Run);
+	//Do not change 'Run'. Let 'SetRun' do it based on hardware check.
+	if (Run)
+		SetRun(false);
+	else
+		SetRun(true);
 }
 
+//READ ON DEMAND :D
 unsigned int Core::Acq(unsigned char *Buffer)
 {
 	unsigned long BytesRead = 0;
 	unsigned long Size = 0;
+	unsigned long ReadSize = 0;
 
 	Size=fmpd0->GetSize();
 	
-	if (DEBUG) printf("Buffer Size: %u\n", Size);
+	if (DEBUG) printf(" - Buffer Size: %u\n", Size);
 
 	if(Size > BLOCK_SIZE-1){
 			//fmpd0->Write(0xAB, 0x55);	//Resets TX INTERFACE's Byte Counter
 
-			fmpd0->Read(/*(unsigned char *)*/Buffer, BytesRead, BLOCK_SIZE /*Size*/);
-			
-			return 1; //(unsigned int)Size;
+			ReadSize = Size/BLOCK_SIZE;
+			ReadSize = ReadSize*BLOCK_SIZE;
+
+			fmpd0->Read(/*(unsigned char *)*/Buffer, BytesRead, ReadSize /*BLOCK_SIZE*/ /*Size*/);
+		
+		//if (BytesRead == ReadSize)
+			return (unsigned int)BytesRead; //1
+		//else
+			//for(;;); //return 0;
 	}
 
 	return 0;
+}
+
+void Core::StopReadout(void)
+{
+	unsigned long	Size = 0;
+	unsigned char	t=0;
+
+	WriteReg(0x80, 0x80); //Stop Readout and give control back to the 'cmddec'.
+
+	fmpd0->clearBufferRX();
+	Size=fmpd0->GetSize();
+	
+	//MUST really flush the read buffer;
+	while((Size > 0) && (t < 20))	//~20ms of timeout;
+	{
+		fmpd0->clearBufferRX();	
+		Size=fmpd0->GetSize();
+		t++;
+		Sleep(1);
+	}
+	printf("First Size: %u\n", Size);
+}
+
+//Write to Command Register - ***TEST ERROR INSIDE OR SOMETHING LIKE THAT***
+unsigned char Core::WriteReg(unsigned char addr, unsigned char data)
+{
+	unsigned char	temp = 0;
+	unsigned long	BytesRead = 0;
+	unsigned long	Size = 0;
+	unsigned char	Buffer[1];
+	unsigned char	t=0;
+	
+	fmpd0->clearBufferRX();
+
+	fmpd0->WriteB(0xAA);			//write cmd
+	temp = (addr & 0x0F);			//temp = ls nibble from addr.
+	fmpd0->WriteB((temp | 0xA0));	//addr ph1 - ls nibble
+	temp = (addr >> 4);				//temp = ms nibble from addr.
+	fmpd0->WriteB((temp | 0x50));	//addr ph2 - ms nibble
+	temp = (data & 0x0F);			//temp = ls nibble from addr.
+	fmpd0->WriteB((temp | 0xA0));	//data ph1 - ls nibble
+	temp = (data >> 4);				//temp = ms nibble from addr.
+	fmpd0->WriteB((temp | 0x50));	//data ph2 - ms nibble
+
+	while((Size < 1) && (t < 20))	//~20ms of timeout;
+	{
+		Size=fmpd0->GetSize();
+		//if (1) printf("Buffer Size: %u - try: %u\r", Size, t);
+		t++;
+		Sleep(1);
+	}
+	
+	if(Size > 0)
+	{
+			fmpd0->Read(Buffer, BytesRead, 1);
+			
+			if (Buffer[0] == 0xEB)
+				return 1;
+			else
+				return 0;
+	}
+
+	return 0;
+}
+
+//Read from Command Register - ***CHANGE TO RETURN POINTER TO DATA***
+unsigned char Core::ReadReg(unsigned char addr)
+{
+	unsigned char	temp = 0;
+	unsigned long	BytesRead = 0;
+	unsigned long	Size = 0;
+	unsigned char	Buffer[1];
+	unsigned char	t=0;
+
+	fmpd0->clearBufferRX();
+
+	fmpd0->WriteB(0x2A);			//read cmd
+	temp = (addr & 0x0F);			//temp = ls nibble from addr.
+	fmpd0->WriteB((temp | 0xA0));	//addr ph1 - ls nibble
+	temp = (addr >> 4);				//temp = ms nibble from addr.
+	fmpd0->WriteB((temp | 0x50));	//addr ph2 - ms nibble
+
+	while((Size < 1) && (t < 20))	//~20ms of timeout;
+	{
+		Size=fmpd0->GetSize();
+		//if (1) printf("Buffer Size: %u - try: %u\r", Size, t);
+		t++;
+		Sleep(1);
+	}
+
+	if(Size > 0)
+	{
+			fmpd0->Read(Buffer, BytesRead, 1);
+			
+			return Buffer[0];
+	}
+
+	return 0;
+}
+
+//TIMEOUT!
+unsigned char Core::WriteSSPI(unsigned char data)
+{
+	//while busy
+	//while ((ReadReg(0x71) & 0x01) == 0x01);
+	WriteReg(0x70, data);
+
+	//while no data
+	//while ((ReadReg(0x71) & 0x02) == 0x00);
+	//return ReadReg(0x70);
+	return 1;
+}
+
+
+unsigned char Core::WriteCore(unsigned char addr, unsigned char data)
+{
+	unsigned char	temp = 0;
+
+	WriteSSPI(0xAA);			//write cmd
+	temp = (addr & 0x0F);		//temp = ls nibble from addr.
+	WriteSSPI((temp | 0xA0));	//addr ph1 - ls nibble
+	temp = (addr >> 4);			//temp = ms nibble from addr.
+	WriteSSPI((temp | 0x50));	//addr ph2 - ms nibble
+	temp = (data & 0x0F);		//temp = ls nibble from addr.
+	WriteSSPI((temp | 0xA0));	//data ph1 - ls nibble
+	temp = (data >> 4);			//temp = ms nibble from addr.
+	WriteSSPI((temp | 0x50));	//data ph2 - ms nibble
+
+	return 1;
 }
 
 unsigned char counter = 0;
 void Core::Loopback(void)
 {
 	
-	unsigned long	BytesRead = 0;
-	unsigned long	Size = 0;
-	unsigned char	Buffer[20];
-	unsigned char	t=0;
-	unsigned int	sum = 0; 
+	unsigned char r		= 0;
+	//unsigned int sum	= 0; 
 	
-	fmpd0->WriteB(counter);
-	fmpd0->WriteB(255-counter);
-	counter++;
+	if ((ReadReg(0x71) & 0x01) == 0x00)
+		WriteReg(0x70, counter);
 
-	while((Size < 2) && (t < 100))
+	while ((ReadReg(0x71) & 0x02) == 0x00);
+
+	r = ReadReg(0x70);
+
+	printf("\n");
+	printf("%u: Loopback: %u, %u\n", counter, r, 0/*Buffer[1]*/);
+	
+	//sum = counter + r;
+
+	if((r != (counter-1)) && (r != 0xFF))
 	{
-		Size=fmpd0->GetSize();
-		if (1) printf("Buffer Size: %u - try: %u\r", Size, t);
-		//t++;
-		//Sleep(1);
+		printf("Error!\n");
+		_getch();
 	}
-	
-	//printf("\n");
-	
-	if(Size > 1){
-			fmpd0->Read(/*(unsigned char *)*/Buffer, BytesRead, 2);
-			//fmpd0->clearBufferRX();
-			
-			printf("\n");
-			printf("%u: Loopback: %u, %u\n", counter, Buffer[0], Buffer[1]);
-			
-			sum = (Buffer[0] + Buffer[1]);
-
-			if((sum > 0) && (sum != 256))
-			{
-				printf("Error!\n");
-				getch();
-			}
-	}
-	//Sleep(30);
-
+	counter++;
 }
 unsigned char Core::MapChannels(unsigned char config, unsigned char *channel){
 	
