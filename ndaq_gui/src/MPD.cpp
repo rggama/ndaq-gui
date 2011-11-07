@@ -80,7 +80,7 @@ int MPD::Read(unsigned char *data, DWORD &BytesR, DWORD size)
 	ReadFtd(numDev, data, BytesR, size);
 	return 1;
 }
-//Reset
+
 void MPD::reset(){
 		WriteFtd(numDev,(char)0xFF);
 }

@@ -8,6 +8,8 @@
 //=============================================================================
 #include "defines.h"
 
+#include <conio.h> /////////////////////////////////////////////////////////2´k2p9u2ja
+
 #include "f_MainFrame.h"
 
 #include "a_graph.h"
@@ -16,6 +18,7 @@
 
 char filename[] = "Filename";
 char suffix[] = "Ch";
+char namevector[280];
 
 //
 
@@ -99,6 +102,8 @@ MainFrame::MainFrame(const TGWindow *p, UInt_t w, UInt_t h) : TGMainFrame(p, w, 
 	fIDcanvas1 = fEcanvas1->GetCanvasWindowId();
    	fcanvasMPD1 = new TCanvas("ndeccanvas", 10, 10, fIDcanvas1);
    	fEcanvas1->AdoptCanvas(fcanvasMPD1);
+	fEcanvas1->GetCanvas()->SetGridx();
+	fEcanvas1->GetCanvas()->SetGridy();
    	fMiddleFrame->AddFrame(fEcanvas1, new TGLayoutHints(kLHintsLeft | kLHintsExpandX | kLHintsExpandY, 0,0,0,0));
 
 
@@ -127,7 +132,7 @@ MainFrame::MainFrame(const TGWindow *p, UInt_t w, UInt_t h) : TGMainFrame(p, w, 
 	/*** Measures Group *********************************************************************************/
 	/****************************************************************************************************/
 	
-	fgroupMeas = new TGGroupFrame(fLGroupFrame,"Measures", kVerticalFrame);
+	fgroupMeas = new TGGroupFrame(fLGroupFrame,"Measurements", kVerticalFrame);
 	//fgroupMeas->SetTitlePos(TGGroupFrame::kRight); // right aligned
 
 	// 2 column, n rows
@@ -313,6 +318,13 @@ MainFrame::MainFrame(const TGWindow *p, UInt_t w, UInt_t h) : TGMainFrame(p, w, 
   	fButtonRunMPD1->Resize(40,25);
   	fgroupCtrl->AddFrame(fButtonRunMPD1);
 	
+	//Save Table
+	fgroupCtrl->AddFrame(new TGLabel(fgroupCtrl, new TGHotString("Save Cal':")));
+	fScal = new TGCheckButton(fgroupCtrl);
+	fScal->SetState(kButtonUp);
+	fScal->Connect("Clicked()", "MainFrame", this, "HandleCheckBoxes()");
+  	fgroupCtrl->AddFrame(fScal);
+
 	//Save CheckBox
 	fgroupCtrl->AddFrame(new TGLabel(fgroupCtrl, new TGHotString("Save Waveform:")));
 	fSave = new TGCheckButton(fgroupCtrl/*, new TGHotString("Save Waveform"), 14*/);
@@ -524,11 +536,14 @@ void MainFrame::FButtonConfig()
 void MainFrame::FButtonRunMPD1()
 {
 	//Stop
+	//If 'running', the only way is stop it.
 	if  (core->GetRun()){
 		fButtonRunMPD1->SetText("Run");
 	}
 	//Start
+	//If 'not running', the only way is start it.
 	else{
+		SetFilename(setts->GetChanConfig(), namevector, filename, suffix);
 		totalEvents=0;
 		cal_count=0;
 		fNumEvents->SetIntNumber(totalEvents);
@@ -576,6 +591,7 @@ bool MainFrame::Update(){
 	//That´s all, folks.
 
 	signed char Buffer[BUFFER];
+	unsigned int block_size=0;
 	unsigned int event_count=0;
 
 	//float x[EVENT_SIZE]/*, yCAL[EVENT_SIZE]*/;
@@ -588,39 +604,53 @@ bool MainFrame::Update(){
 
 	unsigned int i,j;
 
-	char namevector[280];
 
 	/********************************************************************************************/
 
-	if (core->GetRun()) core->Loopback();
-	//event_count = core->Acq((unsigned char *)Buffer);
+	//if (core->GetRun()) core->Loopback();
+	/*if (core->GetRun())*/ block_size = core->Acq((unsigned char *)Buffer);
 
-	if ( event_count > 0 ) {
-
-		event_count = MAX_EVENTS;
+	if ( block_size > 0 ) {
+		/*
+		for (unsigned int index=0; index<event_count; index++)
+		{
+			printf("%u\n", (unsigned char)Buffer[index]);
+			if ((index > 0) && (((unsigned char)Buffer[index]) != 0))
+				if ( ((unsigned char)Buffer[index]) != ((unsigned char)Buffer[index-1]+1) )
+				_getch();
+		}
+		*/
+		event_count = block_size/(EVENT_SIZE*_step_);
 
 		totalEvents=totalEvents+event_count;
 		etime = ((int)time(NULL)-t_zero);
 		
 		if (etime > 0)
-			fNumRxRate->SetNumber((Double_t) (((totalEvents*(EVENT_SIZE))/etime)/1024) );
+			fNumRxRate->SetNumber((Double_t) (((totalEvents*(EVENT_SIZE*_step_))/etime)/1024) );
 
 		fNumEvents->SetIntNumber(totalEvents);
 
 		//fNumCounter->SetIntNumber(dcounter);
 
 		if(fComboGraph->GetSelected() > 0){
-				
+			/*
+			for (unsigned char index=0; index<128; index++)
+			{
+				printf("%u\n", (unsigned char)Buffer[index]);
+				if ((index > 0) && (((unsigned char)Buffer[index]) != 0))
+					if ( ((unsigned char)Buffer[index]) != ((unsigned char)Buffer[index-1]+1) )
+					_getch();
+			}*/
 			switch(fComboGraph->GetSelected()){
 			//posicao
 				case 1: T_intgraph(Buffer+000, x, y); break;
-				case 2: T_intgraph(Buffer+128, x, y); break;
-				case 3: T_intgraph(Buffer+256, x, y); break;
-				case 4: T_intgraph(Buffer+384, x, y); break;
-				case 5: T_intgraph(Buffer+512, x, y); break;
-				case 6: T_intgraph(Buffer+640, x, y); break;
-				case 7: T_intgraph(Buffer+768, x, y); break;
-				case 8: T_intgraph(Buffer+896, x, y); break;
+				case 2: T_intgraph(Buffer+256, x, y); break;
+				case 3: T_intgraph(Buffer+512, x, y); break;
+				case 4: T_intgraph(Buffer+768, x, y); break;
+				case 5: T_intgraph(Buffer+1024, x, y); break;
+				case 6: T_intgraph(Buffer+1280, x, y); break;
+				case 7: T_intgraph(Buffer+1536, x, y); break;
+				case 8: T_intgraph(Buffer+1792, x, y); break;
 			}
 
 
@@ -634,7 +664,7 @@ bool MainFrame::Update(){
 			//graph1->SetMarkerStyle(1);
 			//graph1->SetMarkerSize(1);
 			graph1->SetLineColor(kRed);
-			graph1->GetYaxis()->SetRangeUser(-127, 10);
+			graph1->GetYaxis()->SetRangeUser(-512, 511);
 			graph1->GetXaxis()->SetRangeUser(0, (EVENT_SIZE)/**TIMEBIN*/);				
 			graph1->Draw("AL");
 
@@ -649,25 +679,31 @@ bool MainFrame::Update(){
 			//fNumAmplitude->SetNumber(get_amplitude(EVENT_SIZE,base,yCAL));
 			//fNumCharge->SetNumber(get_charge(EVENT_SIZE,base,yCAL));
 		}
+		
+		//SAVE CAL
+		if(fScal->GetState() != kButtonUp){
+			cal_count+= SaveCal(namevector, setts->GetChanTotal(), block_size, Buffer);
+		}
 
 		//SAVE WAVE
 		if(fSave->GetState() != kButtonUp){
-			//Setting Filenames
-			SetFilename(setts->GetChanConfig(), namevector, filename, suffix);
-			//SaveWave(namevector, setts->GetChanTotal(), Buffer);
-			cal_count+= SaveTable(namevector, setts->GetChanTotal(), Buffer); //SaveCal(namevector, setts->GetChanTotal(), Buffer);
-			//SaveTable(namevector, setts->GetChanTotal(), Buffer);
-			if (cal_count > 400000){
-				FButtonRunMPD1();
-				printf("cal_count: %0.6u\r", cal_count);
-			}
+			SaveWave(namevector, setts->GetChanTotal(), block_size, Buffer);
 
 		}
 
 		//SAVE TABLE
-		if((0)){
+		if(fTable->GetState() != kButtonUp){
+			cal_count+= SaveNTable(namevector, setts->GetChanTotal(), block_size, Buffer); 
+		}
+
+		//Test Save Count Limit
+		if (cal_count > 100000){
+			FButtonRunMPD1();
+			printf("cal_count: %0.6u\r", cal_count);
+			cal_count = 0;
 		}
 
 		return true;
+
 	}else return false;
 }

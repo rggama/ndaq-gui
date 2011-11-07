@@ -98,6 +98,7 @@ private:
 	//Control Group (child of the Right group frame).
 	TGGroupFrame *fgroupCtrl;
 	TGTextButton *fButtonRunMPD1;
+	TGCheckButton *fScal;
 	TGCheckButton *fSave;
 	TGCheckButton *fTable;
 
@@ -115,6 +116,7 @@ private:
 
 	//Variables
 	bool fbslope;
+	bool saveCal;
 	bool saveWave;
 	bool saveTable;
 
