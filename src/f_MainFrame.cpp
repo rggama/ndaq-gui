@@ -2,13 +2,13 @@
 // File Name   : f_MainFrame.cpp
 // Pseudo Name : NDAQ Event Catcher (NDEC)
 // Author      : Rafael Gama
-// Version     : svn controlled.
+// Version     : 0.3b
 // Copyright   : IF YOU COPY THIS, YOU'RE A HUGE VAGABUNDO!
 // Description : Not today...
 //=============================================================================
 #include "defines.h"
 
-#include <conio.h> //Why does it hurt when I pee? Seriouslly, why is that here?
+#include <conio.h> /////////////////////////////////////////////////////////2´k2p9u2ja
 
 #include "f_MainFrame.h"
 
@@ -34,6 +34,7 @@ unsigned long cal_count=0;
 int t_zero=0;
 UInt_t dcounter=0;
 UInt_t ldcounter=0;
+unsigned long first_count=0;
 
 
 MainFrame::MainFrame(const TGWindow *p, UInt_t w, UInt_t h) : TGMainFrame(p, w, h)
@@ -132,7 +133,7 @@ MainFrame::MainFrame(const TGWindow *p, UInt_t w, UInt_t h) : TGMainFrame(p, w, 
 	/*** Measures Group *********************************************************************************/
 	/****************************************************************************************************/
 	
-	fgroupMeas = new TGGroupFrame(fLGroupFrame,"Measurements", kVerticalFrame);
+	fgroupMeas = new TGGroupFrame(fLGroupFrame,"Measures", kVerticalFrame);
 	//fgroupMeas->SetTitlePos(TGGroupFrame::kRight); // right aligned
 
 	// 2 column, n rows
@@ -593,6 +594,9 @@ bool MainFrame::Update(){
 	signed char Buffer[BUFFER];
 	unsigned int block_size=0;
 	unsigned int event_count=0;
+	
+	unsigned long counter;
+	unsigned char b0, b1, b2, b3;
 
 	//float x[EVENT_SIZE]/*, yCAL[EVENT_SIZE]*/;
 	Int_t x[EVENT_SIZE];
@@ -600,14 +604,14 @@ bool MainFrame::Update(){
 
 	//float base = 0;
 	unsigned int residue=0;
-	int etime=0;
+	unsigned int etime=0;
+	unsigned long freq=0;
 
 	unsigned int i,j;
 
 
 	/********************************************************************************************/
 
-	//if (core->GetRun()) core->TestCoreRW();
 	//if (core->GetRun()) core->Loopback();
 	/*if (core->GetRun())*/ block_size = core->Acq((unsigned char *)Buffer);
 
@@ -630,10 +634,30 @@ bool MainFrame::Update(){
 			fNumRxRate->SetNumber((Double_t) (((totalEvents*(EVENT_SIZE*_step_))/etime)/1024) );
 
 		fNumEvents->SetIntNumber(totalEvents);
+		
+		b0 = (unsigned char)*(Buffer+1);
+		b1 = (unsigned char)*(Buffer+2);
+		//b2 = 
+		//b3 = 
+		
+		counter = b0+(b1<<8)/*+(b2<<16)+(b3<<24)*/;
+		
+		//if(etime == 0) first_count = counter;
+
+		freq = counter*10; /*(counter/100)*1000000;*/
+
+		printf("Freq: %0.9u\r", freq);
+
+		//printf("Counter: 0x%0.2X%0.2X%0.2X%0.2X\r", b3, b2, b1, b0);
+		//printf("Counter: 0x%0.2X-0x%0.2X-0x%0.2X-0x%0.2X-0x%0.2X-0x%0.2X-0x%0.2X-0x%0.2X\r",	
+		//		(unsigned char)*(Buffer+0), (unsigned char)*(Buffer+1),
+		//		(unsigned char)*(Buffer+2), (unsigned char)*(Buffer+3),
+		//		(unsigned char)*(Buffer+4), (unsigned char)*(Buffer+5),
+		//		(unsigned char)*(Buffer+6), (unsigned char)*(Buffer+7));
 
 		//fNumCounter->SetIntNumber(dcounter);
 
-		if(fComboGraph->GetSelected() > 0){
+		if(0/*fComboGraph->GetSelected() > 0*/){
 			/*
 			for (unsigned char index=0; index<128; index++)
 			{
@@ -657,7 +681,7 @@ bool MainFrame::Update(){
 
 			//Initialize graph1
  			//fEcanvas1->GetCanvas()->cd();
- 			if(graph1) delete graph1;
+ 			//if(graph1) delete graph1;
 
 			graph1 = new TGraph(EVENT_SIZE, x, y);
 			graph1->SetTitle("Event");
@@ -694,11 +718,13 @@ bool MainFrame::Update(){
 
 		//SAVE TABLE
 		if(fTable->GetState() != kButtonUp){
-			cal_count+= SaveNTable(namevector, setts->GetChanTotal(), block_size, Buffer); 
+			//cal_count+= SaveNTable(namevector, setts->GetChanTotal(), block_size, Buffer); 
+			SaveCounter(namevector, etime, freq);
+			cal_count++;
 		}
 
 		//Test Save Count Limit
-		if (cal_count > 100000){
+		if (cal_count > 1000){
 			FButtonRunMPD1();
 			printf("cal_count: %0.6u\r", cal_count);
 			cal_count = 0;
