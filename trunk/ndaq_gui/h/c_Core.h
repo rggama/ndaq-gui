@@ -32,10 +32,13 @@ public:
 	unsigned char MapChannels(unsigned char config, unsigned char *channel);
 	unsigned char WriteReg(unsigned char addr, unsigned char data);
 	unsigned char ReadReg(unsigned char addr);
-	void StopReadout(void);
+	void CheckClear(void);
 	void Loopback(void);
+	void TestVmeRW(void);
+	void TestCoreRW(void);
 	unsigned char WriteSSPI(unsigned char data);
 	unsigned char WriteCore(unsigned char addr, unsigned char data);
+	unsigned char ReadCore(unsigned char addr);
 
 
 	//ClassDef(Core,0);

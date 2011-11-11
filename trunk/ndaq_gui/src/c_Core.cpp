@@ -2,7 +2,7 @@
 // File Name   : c_Core.cpp
 // Pseudo Name : NDAQ Event Catcher (NDEC)
 // Author      : Rafael Gama
-// Version     : 0.2b
+// Version     : svn controlled.
 // Copyright   : IF YOU COPY THIS, YOU'RE A HUGE VAGABUNDO!
 // Description : Not today...
 //=============================================================================
@@ -12,6 +12,8 @@
 
 #include "c_Core.h"
 
+#define E	printf("WriteReg Error!\n")
+#define R	if (DEBUG) printf("Response 0x%0.2X\n", r)
 
 Core::Core()
 {
@@ -49,10 +51,11 @@ void Core::Initialize()
 
 	fmpd0->SetLatency(16);
 
-	StopReadout();
+	CheckClear();
 	WriteReg(0xAA, 0x55);		//Resets Vme FPGA
-	//WriteReg(0xAA, 0x55);		//Resets Vme FPGA
-	//WriteCore(0xAA,0x55);		//Resets Core FPGA
+	//Colocar como valor padrao no FPGA
+	WriteReg(0x80, 0x80);		//Grant we'll have command responses.
+	WriteCore(0xAA,0x55);		//Resets Core FPGA
 }
 
 void Core::SetChannels(unsigned char c_config)
@@ -70,9 +73,12 @@ void Core::SetRun(bool state)
 	
 	//Start
 	if(state){
+		WriteReg(0x80, 0x80);				//Grant we'll have command responses.
+		Sleep(50);
+
 		//WriteReg(0xAA, 0x55);
 		
-		fmpd0->clearBufferRX();			//Clear SOFTWARE RX Buffer
+		//fmpd0->clearBufferRX();			//Clear SOFTWARE RX Buffer
 
 		//WriteCore(0x87, 0x01);			//ADC Power-up
 		WriteCore(0x77, 0x55);				//Th
@@ -81,19 +87,28 @@ void Core::SetRun(bool state)
 		//WriteCore(0x89, 0x00);			//FIFO Reset Deassert
 		//Sleep(20);
 		//WriteCore(0x91, 0x01);			//ACQ Enable
-		
-		WriteReg(0x80, 0x01);			//Vme Readout Enable
+
+		WriteReg(0x80, 0x00);				//From here we won't have command responses anymore.
+		CheckClear();						//Ensure Receive Buffer is clear.
+
+		WriteReg(0x80, 0x01);				//Vme Readout Enable.
+				
 		Run = true;
 
-		 //if everything went well.
 	//Stop
 	}else{
 		//WriteCore(0x87, 0x00);			//ADC Power-down
 		//WriteCore(0x91, 0x00);			//ACQ Disable
 		
-		StopReadout();					//Vme Readout Disable
-		WriteReg(0xAA, 0x55);			//Resets Vme FPGA
-		Run = false; //if it really stopped.
+		Run = false;
+		Sleep(50);
+
+		CheckClear();						//Ensure Receive Buffer is clear.
+		WriteReg(0xAA, 0x55);				//Resets Vme FPGA
+		WriteReg(0x80, 0x80);				//Return grant to command responses.
+		WriteCore(0xAA,0x55);				//Resets Core FPGA
+
+		//*Run = false; //if it really stopped.
 	}	
 }
 
@@ -183,12 +198,10 @@ unsigned int Core::Acq(unsigned char *Buffer)
 	return 0;
 }
 
-void Core::StopReadout(void)
+void Core::CheckClear(void)
 {
 	unsigned long	Size = 0;
 	unsigned char	t=0;
-
-	WriteReg(0x80, 0x80); //Stop Readout and give control back to the 'cmddec'.
 
 	fmpd0->clearBufferRX();
 	Size=fmpd0->GetSize();
@@ -246,7 +259,7 @@ unsigned char Core::WriteReg(unsigned char addr, unsigned char data)
 	return 0;
 }
 
-//Read from Command Register - ***CHANGE TO RETURN POINTER TO DATA***
+//Read from Command Register - ***CHANGE TO RETURN POINTER TO DATA*** (Really?)
 unsigned char Core::ReadReg(unsigned char addr)
 {
 	unsigned char	temp = 0;
@@ -281,37 +294,73 @@ unsigned char Core::ReadReg(unsigned char addr)
 	return 0;
 }
 
-//TIMEOUT!
+//
 unsigned char Core::WriteSSPI(unsigned char data)
 {
-	//while busy
-	//while ((ReadReg(0x71) & 0x01) == 0x01);
-	WriteReg(0x70, data);
+	unsigned char t=0;
 
+	//while busy
+	while (((ReadReg(0x71) & 0x01) == 0x01) && (t < 20)) t++;
+	if(!(WriteReg(0x70, data))) E;
+	if (t==20) printf("SPI busy test TIMED OUT!\n");
+	t=0;
 	//while no data
-	//while ((ReadReg(0x71) & 0x02) == 0x00);
-	//return ReadReg(0x70);
-	return 1;
+	while (((ReadReg(0x71) & 0x02) == 0x00) && (t < 20)) t++;
+	if (t==20) printf("SPI data test TIMED OUT!\n");
+	return ReadReg(0x70);
 }
 
 
 unsigned char Core::WriteCore(unsigned char addr, unsigned char data)
 {
 	unsigned char	temp = 0;
+	unsigned char	r = 0;
 
-	WriteSSPI(0xAA);			//write cmd
-	temp = (addr & 0x0F);		//temp = ls nibble from addr.
-	WriteSSPI((temp | 0xA0));	//addr ph1 - ls nibble
-	temp = (addr >> 4);			//temp = ms nibble from addr.
-	WriteSSPI((temp | 0x50));	//addr ph2 - ms nibble
-	temp = (data & 0x0F);		//temp = ls nibble from addr.
-	WriteSSPI((temp | 0xA0));	//data ph1 - ls nibble
-	temp = (data >> 4);			//temp = ms nibble from addr.
-	WriteSSPI((temp | 0x50));	//data ph2 - ms nibble
+	r = WriteSSPI(0xAA); R;				//write cmd
+	temp = (addr & 0x0F);				//temp = ls nibble from addr.
+	r = WriteSSPI((temp | 0xA0)); R;	//addr ph1 - ls nibble
+	temp = (addr >> 4);					//temp = ms nibble from addr.
+	r = WriteSSPI((temp | 0x50)); R;	//addr ph2 - ms nibble
+	temp = (data & 0x0F);				//temp = ls nibble from addr.
+	r = WriteSSPI((temp | 0xA0)); R;	//data ph1 - ls nibble
+	temp = (data >> 4);					//temp = ms nibble from addr.
+	r = WriteSSPI((temp | 0x50)); R;	//data ph2 - ms nibble
+	
+	r = WriteSSPI(0xFF); R;				//getting response.
+	
+	if (r == 0xEB) return 1;
 
-	return 1;
+	return 0;
 }
 
+unsigned char Core::ReadCore(unsigned char addr)
+{
+	unsigned char	temp = 0;
+	unsigned char	r = 0;
+
+	//unsigned long	BytesRead = 0;
+	//unsigned long	Size = 0;
+	//unsigned char	Buffer[1];
+	//unsigned char	t=0;
+
+	//fmpd0->clearBufferRX();
+
+	r = WriteSSPI(0x2A); R;				//read cmd
+	temp = (addr & 0x0F);				//temp = ls nibble from addr.
+	r = WriteSSPI((temp | 0xA0)); R;	//addr ph1 - ls nibble
+	temp = (addr >> 4);					//temp = ms nibble from addr.
+	r = WriteSSPI((temp | 0x50)); R;	//addr ph2 - ms nibble
+
+	r = WriteSSPI(0xFF); R;				//getting response and it is the register's value.
+
+	return r;
+}
+
+/*****************************************************************************/
+/***************************** Test Functions ********************************/
+/*****************************************************************************/
+
+//SPI Loopback test. Core FPGA must be 'loopback enabled'.
 unsigned char counter = 0;
 void Core::Loopback(void)
 {
@@ -319,12 +368,7 @@ void Core::Loopback(void)
 	unsigned char r		= 0;
 	//unsigned int sum	= 0; 
 	
-	if ((ReadReg(0x71) & 0x01) == 0x00)
-		WriteReg(0x70, counter);
-
-	while ((ReadReg(0x71) & 0x02) == 0x00);
-
-	r = ReadReg(0x70);
+	r = WriteSSPI(counter);
 
 	printf("\n");
 	printf("%u: Loopback: %u, %u\n", counter, r, 0/*Buffer[1]*/);
@@ -338,6 +382,42 @@ void Core::Loopback(void)
 	}
 	counter++;
 }
+
+void Core::TestVmeRW(void)
+{
+	unsigned char r=0;
+
+	if (WriteReg(0x27, counter)) printf("Write OK!\n");
+	r = ReadReg(0x27);
+	printf("Read returns 0x%0.2X\n", r);
+	if (r != counter)
+	{
+		printf("Error!\n");
+		_getch();
+	}
+	counter++;
+}
+
+void Core::TestCoreRW(void)
+{
+	unsigned char r=0;
+
+	if (WriteCore(0x27, counter)) printf("Write OK!\n");
+	else {printf("Error!\n"); _getch();}
+	r = ReadCore(0x27);
+	printf("Read returns 0x%0.2X\n", r);
+	if (r != counter)
+	{
+		printf("Error!\n");
+		_getch();
+	}
+	counter++;
+}
+
+/*****************************************************************************/
+/*****************************************************************************/
+
+
 unsigned char Core::MapChannels(unsigned char config, unsigned char *channel){
 	
 	unsigned char pos=0;
