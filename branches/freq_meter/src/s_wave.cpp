@@ -164,6 +164,21 @@ unsigned int SaveNTable(char *namevector, unsigned char t_channels, unsigned int
 	return counter;
 }
 
+unsigned int SaveCounter(char *namevector, unsigned int etime, unsigned long freq){
+	
+	FILE *file;
+	
+
+	file = fopen(namevector, "a+t");
+	
+	fprintf(file, "%u\t%u\n", etime, freq);
+	
+	fclose(file);
+	
+	
+	return 0;
+}
+
 /**************************************************************************************************************************/
 
 double GetBaseline(signed char *buffer, unsigned int w)

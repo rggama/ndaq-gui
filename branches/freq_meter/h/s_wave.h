@@ -20,6 +20,8 @@ signed int GetNPeak(signed char *buffer, unsigned int addr, unsigned char start,
 
 double GetPInt(signed char *buffer, double base, unsigned int addr, unsigned char start, unsigned char end);
 
+unsigned int SaveCounter(char *namevector, unsigned int etime, unsigned long freq);
+
 //void SaveColumn(char *namevector, unsigned char t_channels, unsigned int block_size, signed char *buffer);
 //signed char GetPHigher(signed char *buffer, unsigned int w);
 //signed char GetNHigher(signed char *buffer, unsigned int w);
