@@ -2,13 +2,13 @@
 // File Name   : f_MainFrame.cpp
 // Pseudo Name : NDAQ Event Catcher (NDEC)
 // Author      : Rafael Gama
-// Version     : 0.3b
+// Version     : svn controlled.
 // Copyright   : IF YOU COPY THIS, YOU'RE A HUGE VAGABUNDO!
 // Description : Not today...
 //=============================================================================
 #include "defines.h"
 
-#include <conio.h> /////////////////////////////////////////////////////////2´k2p9u2ja
+#include <conio.h> //Why does it hurt when I pee? Seriouslly, why is that here?
 
 #include "f_MainFrame.h"
 
@@ -607,6 +607,7 @@ bool MainFrame::Update(){
 
 	/********************************************************************************************/
 
+	//if (core->GetRun()) core->TestCoreRW();
 	//if (core->GetRun()) core->Loopback();
 	/*if (core->GetRun())*/ block_size = core->Acq((unsigned char *)Buffer);
 
@@ -656,7 +657,7 @@ bool MainFrame::Update(){
 
 			//Initialize graph1
  			//fEcanvas1->GetCanvas()->cd();
- 			//if(graph1) delete graph1;
+ 			if(graph1) delete graph1;
 
 			graph1 = new TGraph(EVENT_SIZE, x, y);
 			graph1->SetTitle("Event");

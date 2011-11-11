@@ -40,5 +40,7 @@
 #define c16E4			16<<12
 #define c16E2			16<<4
 
-#define _J_(x)			(((*((x)+1)<<2)+*(x))<<6)
+#define _J_(x)			(((*((x)+1)<<2)+*(x))<<6)	//10 bits construction.
+//#define _J_(x)			(((*((x)+1)<<4)+*(x))<<4)	//12 bits construction.
+
 /**/
