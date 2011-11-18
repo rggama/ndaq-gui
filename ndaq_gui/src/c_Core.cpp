@@ -92,6 +92,7 @@ void Core::SetRun(bool state)
 		CheckClear();						//Ensure Receive Buffer is clear.
 
 		WriteReg(0x80, 0x01);				//Vme Readout Enable.
+		WriteReg(0x81, lc_config);			//Vme Channel Selector.
 				
 		Run = true;
 
