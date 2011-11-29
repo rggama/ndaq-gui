@@ -48,6 +48,7 @@ void Core::Initialize()
 	fmpd0->SetFlowControl();
 
 	fmpd0->SetBlock(65536);
+	//fmpd0->SetBlock(4096);
 
 	fmpd0->SetLatency(16);
 
@@ -74,17 +75,16 @@ void Core::SetRun(bool state)
 	//Start
 	if(state){
 		WriteReg(0x80, 0x80);				//Grant we'll have command responses.
-		Sleep(50);
+		//Sleep(50);
 
-		//WriteReg(0xAA, 0x55);
+		WriteReg(0x82, 0x01);				//Readout Reset Assert
+		//Sleep(16);
+		WriteReg(0x82, 0x00);				//Readout Reset Deassert
 		
-		//fmpd0->clearBufferRX();			//Clear SOFTWARE RX Buffer
+		WriteCore(0x89, 0x01);				//ACQ Reset Assert
+		//Sleep(16);
+		WriteCore(0x89, 0x00);				//ACQ Reset Deassert
 
-		//WriteCore(0x87, 0x01);			//ADC Power-up
-		WriteCore(0x77, 0x55);				//Th
-		
-		//WriteCore(0x89, 0x01);			//FIFO Reset Assert
-		//WriteCore(0x89, 0x00);			//FIFO Reset Deassert
 		//Sleep(20);
 		//WriteCore(0x91, 0x01);			//ACQ Enable
 
@@ -102,12 +102,15 @@ void Core::SetRun(bool state)
 		//WriteCore(0x91, 0x00);			//ACQ Disable
 		
 		Run = false;
-		Sleep(50);
+		WriteReg(0x81, 0x00);				//Vme Channel Selector - Disable ALL Channels.
+		WriteReg(0x80, 0x00);				//Vme Readout Disable.
+
+		//Sleep(50);
 
 		CheckClear();						//Ensure Receive Buffer is clear.
-		WriteReg(0xAA, 0x55);				//Resets Vme FPGA
+		//WriteReg(0xAA, 0x55);				//Resets Vme FPGA
 		WriteReg(0x80, 0x80);				//Return grant to command responses.
-		WriteCore(0xAA,0x55);				//Resets Core FPGA
+		//WriteCore(0xAA,0x55);				//Resets Core FPGA
 
 		//*Run = false; //if it really stopped.
 	}	
@@ -218,7 +221,7 @@ void Core::CheckClear(void)
 	printf("First Size: %u\n", Size);
 }
 
-//Write to Command Register - ***TEST ERROR INSIDE OR SOMETHING LIKE THAT***
+//Write to Command Register - ***TEST ERROR INSIDE OR SOMETHING LIKE THAT (Already done?!)***
 unsigned char Core::WriteReg(unsigned char addr, unsigned char data)
 {
 	unsigned char	temp = 0;
