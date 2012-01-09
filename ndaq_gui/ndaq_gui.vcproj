@@ -186,6 +186,10 @@
 				>
 			</File>
 			<File
+				RelativePath=".\src\f_Graphs.cpp"
+				>
+			</File>
+			<File
 				RelativePath=".\src\f_MainFrame.cpp"
 				>
 			</File>
@@ -233,6 +237,10 @@
 			</File>
 			<File
 				RelativePath=".\h\f_Channels.h"
+				>
+			</File>
+			<File
+				RelativePath=".\h\f_Graphs.h"
 				>
 			</File>
 			<File

@@ -86,7 +86,7 @@ void Core::SetRun(bool state)
 		WriteCore(0x89, 0x00);				//ACQ Reset Deassert
 
 		//Sleep(20);
-		//WriteCore(0x91, 0x01);			//ACQ Enable
+		WriteCore(0x91, 0x00);				//ACQ Register - Bit 7: 0 -> external trigger, 1 -> internal trigger
 
 		WriteReg(0x80, 0x00);				//From here we won't have command responses anymore.
 		CheckClear();						//Ensure Receive Buffer is clear.
