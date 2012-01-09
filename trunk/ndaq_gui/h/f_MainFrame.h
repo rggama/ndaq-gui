@@ -34,13 +34,15 @@
 
 #include "c_Core.h"
 #include "f_Channels.h"
-
+#include "f_Graphs.h"
 
 enum ETestCommandIdentifiers {
    M_FILE_EXIT,
 
    M_SETTINGS_CHANNELS,
-   M_SETTINGS_DATAFLOW
+   M_SETTINGS_DATAFLOW,
+
+   M_VIEW_GRAPHS
 };
 
 
@@ -54,7 +56,7 @@ private:
 
 	//Menu Bar itself, Menu Popups and Layout Hints.
 	TGMenuBar          *fMenuBar;
-	TGPopupMenu        *fMenuFile, *fMenuSettings, *fMenuHelp;
+	TGPopupMenu        *fMenuFile, *fMenuSettings, *fMenuView/*, *fMenuHelp*/;
 	TGLayoutHints      *fMenuBarLayout, *fMenuBarItemLayout, *fMenuBarHelpLayout;
 	
 	//Middle frame that contains the Canvas and the Left/Right Group Frames (child of MainFrame).
@@ -64,9 +66,16 @@ private:
 	TRootEmbeddedCanvas *fEcanvas1;
 	Int_t fIDcanvas1;
 	TCanvas *fcanvasMPD1;
+	//TCanvas *fcanvas1;
+	//TCanvas *fcanvas2;
+	//TCanvas *fcanvas3;
+	//TCanvas *fcanvas4;
+	//TCanvas *fcanvas5;
+	//TCanvas *fcanvas6;
+	//TCanvas *fcanvas7;
+	//TCanvas *fcanvas8;
 
 	//Graphics.
-	//TMultiGraph *mg;
 	TGraph *graph1;
 	
 	//Left and Right group frames (children of MiddleFrame).
@@ -114,6 +123,9 @@ private:
 	//Settings Frame
 	fChannelsFrame *fChannels;
 
+	//Graphics Frame
+	fGraphsFrame *fGraphs;
+
 	//Variables
 	bool fbslope;
 	bool saveCal;
@@ -139,6 +151,9 @@ public:
 	
 	void LocalChanged() { Emit("LocalChanged()"); }	//*SIGNAL*
 	
+	//void GetGraphsOpen() {return GraphsOpen;}
+	//void SetGraphsOpen() (bool state) {GraphsOpen = state;}
+
 	ClassDef(MainFrame,0);
 };
 

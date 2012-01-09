@@ -93,6 +93,7 @@ extern G__linked_taginfo G__r_DictLN_TMatrixTBaselEfloatgR;
 extern G__linked_taginfo G__r_DictLN_TMatrixTBaselEdoublegR;
 extern G__linked_taginfo G__r_DictLN_Settings;
 extern G__linked_taginfo G__r_DictLN_fChannelsFrame;
+extern G__linked_taginfo G__r_DictLN_fGraphsFrame;
 extern G__linked_taginfo G__r_DictLN_MainFrame;
 
 /* STUB derived class for protected member access */

@@ -35,6 +35,7 @@ int t_zero=0;
 UInt_t dcounter=0;
 UInt_t ldcounter=0;
 
+unsigned char graph_counter=1;
 
 MainFrame::MainFrame(const TGWindow *p, UInt_t w, UInt_t h) : TGMainFrame(p, w, h)
 {	
@@ -78,13 +79,18 @@ MainFrame::MainFrame(const TGWindow *p, UInt_t w, UInt_t h) : TGMainFrame(p, w, 
 	//fMenuSettings->CheckEntry(M_VIEW_ENBL_DOCK);
 	//fMenuSettings->CheckEntry(M_VIEW_ENBL_HIDE);
 
+	fMenuView = new TGPopupMenu(gClient->GetRoot());
+	fMenuView->AddEntry("&All Channels", M_VIEW_GRAPHS);
+	fMenuView->Connect("Activated(Int_t)", "MainFrame", this, "HandleMenu(Int_t)");
+
 	// When using the DockButton of the MenuDock,
 	// the states 'enable' and 'disable' of menus have to be updated.
 	//fMenuDock->Connect("Undocked()", "MainFrame", this, "HandleMenu(255)");
 
 	fMenuBar = new TGMenuBar(fMenuDock, 1, 1, kHorizontalFrame);
-	fMenuBar->AddPopup("&File", fMenuFile, fMenuBarItemLayout);
-	fMenuBar->AddPopup("&Settings", fMenuSettings, fMenuBarItemLayout);
+	fMenuBar->AddPopup("&File",		fMenuFile,		fMenuBarItemLayout);
+	fMenuBar->AddPopup("&Settings",	fMenuSettings,	fMenuBarItemLayout);
+	fMenuBar->AddPopup("&CAN",		fMenuView,		fMenuBarItemLayout);
 	//fMenuBar->AddPopup("&Help", fMenuHelp, fMenuBarHelpLayout);
 
 	fMenuDock->AddFrame(fMenuBar, fMenuBarLayout);
@@ -105,7 +111,7 @@ MainFrame::MainFrame(const TGWindow *p, UInt_t w, UInt_t h) : TGMainFrame(p, w, 
 	fEcanvas1->GetCanvas()->SetGridx();
 	fEcanvas1->GetCanvas()->SetGridy();
    	fMiddleFrame->AddFrame(fEcanvas1, new TGLayoutHints(kLHintsLeft | kLHintsExpandX | kLHintsExpandY, 0,0,0,0));
-
+	
 
 	/****************************************************************************************************/
 	/*** MiddleFrame: LGroupFrame ***********************************************************************/
@@ -380,7 +386,7 @@ MainFrame::MainFrame(const TGWindow *p, UInt_t w, UInt_t h) : TGMainFrame(p, w, 
 	/**************************************************************************************************/
 	/**************************************************************************************************/
 	/**************************************************************************************************/
-
+	//GraphsOpen = false;
 	core = new Core();  
 	setts = new Settings();
 
@@ -441,6 +447,10 @@ void MainFrame::HandleMenu(Int_t id)
 			fChannels->Connect("SettingsChanged()", "MainFrame", "this", "SettingsUpdate()");
 			break;
 		
+		case M_VIEW_GRAPHS:
+			fGraphs = new fGraphsFrame(gClient->GetRoot(), this, 1000, 1000);
+			break;
+
 		default:
 			printf("Menu item %d selected\n", id);
 			break;
@@ -598,11 +608,16 @@ bool MainFrame::Update(){
 	Int_t x[EVENT_SIZE];
 	Int_t y[EVENT_SIZE];
 
+	Int_t x1[EVENT_SIZE];
+	Int_t y1[EVENT_SIZE];
+
 	//float base = 0;
 	unsigned int residue=0;
 	int etime=0;
 
 	unsigned int i,j;
+
+	char ch[4];
 
 
 	/********************************************************************************************/
@@ -642,34 +657,103 @@ bool MainFrame::Update(){
 					if ( ((unsigned char)Buffer[index]) != ((unsigned char)Buffer[index-1]+1) )
 					_getch();
 			}*/
-			switch(fComboGraph->GetSelected()){
-			//posicao
-				case 1: T_intgraph(Buffer+000, x, y); break;
-				case 2: T_intgraph(Buffer+256, x, y); break;
-				case 3: T_intgraph(Buffer+512, x, y); break;
-				case 4: T_intgraph(Buffer+768, x, y); break;
-				case 5: T_intgraph(Buffer+1024, x, y); break;
-				case 6: T_intgraph(Buffer+1280, x, y); break;
-				case 7: T_intgraph(Buffer+1536, x, y); break;
-				case 8: T_intgraph(Buffer+1792, x, y); break;
+			
+			if (setts->GetGraphsOpen() == false){
+
+				switch(fComboGraph->GetSelected()){
+				//posicao
+					case 1: T_intgraph(Buffer+4, x, y, 0); break;
+					case 2: T_intgraph(Buffer+256, x, y, 0); break;
+					case 3: T_intgraph(Buffer+512, x, y, 0); break;
+					case 4: T_intgraph(Buffer+768, x, y, 0); break;
+					case 5: T_intgraph(Buffer+1024, x, y, 0); break;
+					case 6: T_intgraph(Buffer+1280, x, y, 0); break;
+					case 7: T_intgraph(Buffer+1536, x, y, 0); break;
+					case 8: T_intgraph(Buffer+1792, x, y, 0); break;
+				}
+								
+				//Initialize graph1
+ 				//fEcanvas1->GetCanvas()->cd();
+ 				//if(graph1) delete graph1;
+				
+				graph1 = new TGraph(EVENT_SIZE, x, y);
+				graph1->SetTitle("Event");
+				graph1->SetEditable(kFALSE);
+				//graph1->SetMarkerStyle(kFullDotMedium);
+				//graph1->SetMarkerSize(1);
+				//graph1->SetMarkerColor(kRed);
+				graph1->SetLineColor(kRed);
+				graph1->GetYaxis()->SetRangeUser(-220, 50);
+				graph1->GetXaxis()->SetRangeUser(0, (EVENT_SIZE/**TIMEBIN*/));				
+				graph1->Draw("AL");			
+
+				fEcanvas1->GetCanvas()->Update();
+			}else{				
+				switch(graph_counter){
+				//posicao
+					case 1: 
+						T_intgraph(Buffer+000, x, y, 0); 
+						fGraphs->fEcanvas1->GetCanvas()->cd(); 
+						fGraphs->fEcanvas1->GetCanvas()->Update(); 
+					break;
+					case 2: 
+						T_intgraph(Buffer+256, x, y, 0); 
+						fGraphs->fEcanvas2->GetCanvas()->cd(); 
+						fGraphs->fEcanvas2->GetCanvas()->Update(); 
+					break;
+					case 3: 
+						T_intgraph(Buffer+512, x, y, 0); 
+						fGraphs->fEcanvas3->GetCanvas()->cd(); 
+						fGraphs->fEcanvas3->GetCanvas()->Update(); 
+					break;
+					case 4: 
+						T_intgraph(Buffer+768, x, y, 0); 
+						fGraphs->fEcanvas4->GetCanvas()->cd(); 
+						fGraphs->fEcanvas4->GetCanvas()->Update(); 
+					break;
+					case 5: 
+						T_intgraph(Buffer+1024, x, y, 0); 
+						fGraphs->fEcanvas5->GetCanvas()->cd(); 
+						fGraphs->fEcanvas5->GetCanvas()->Update(); 
+					break;
+					case 6: 
+						T_intgraph(Buffer+1280, x, y, 0); 
+						fGraphs->fEcanvas6->GetCanvas()->cd(); 
+						fGraphs->fEcanvas6->GetCanvas()->Update(); 
+					break;
+					case 7: 
+						T_intgraph(Buffer+1536, x, y, 0); 
+						fGraphs->fEcanvas7->GetCanvas()->cd(); 
+						fGraphs->fEcanvas7->GetCanvas()->Update(); 
+					break;
+					case 8: 
+						T_intgraph(Buffer+1792, x, y, 0); 
+						fGraphs->fEcanvas8->GetCanvas()->cd(); 
+						fGraphs->fEcanvas8->GetCanvas()->Update(); 
+					break;
+				}
+				
+				sprintf(ch, "%s %u", "Ch", graph_counter);
+				graph1 = new TGraph(EVENT_SIZE, x, y);
+				graph1->SetTitle(ch);
+				graph1->SetEditable(kFALSE);
+				graph1->SetLineColor(kRed);
+				graph1->GetYaxis()->SetRangeUser(-220, 50);
+				graph1->GetXaxis()->SetRangeUser(0, (EVENT_SIZE/**TIMEBIN*/));				
+				graph1->Draw("AL");
+
+				graph_counter++;
+				if (graph_counter == 9) graph_counter = 1;
 			}
 
+			/*
+			if (setts->GetGraphsOpen()){
+				printf("true\n");
+				fGraphs->PlotGraph1(x, y);
+			}else
+				printf("false\n");
+			*/
 
-			//Initialize graph1
- 			//fEcanvas1->GetCanvas()->cd();
- 			if(graph1) delete graph1;
-
-			graph1 = new TGraph(EVENT_SIZE, x, y);
-			graph1->SetTitle("Event");
-			graph1->SetEditable(kFALSE);
-			//graph1->SetMarkerStyle(1);
-			//graph1->SetMarkerSize(1);
-			graph1->SetLineColor(kRed);
-			graph1->GetYaxis()->SetRangeUser(-512, 511);
-			graph1->GetXaxis()->SetRangeUser(0, (EVENT_SIZE)/**TIMEBIN*/);				
-			graph1->Draw("AL");
-
-			fEcanvas1->GetCanvas()->Update();	
 		}
 		
 		//MEASURES
