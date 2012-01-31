@@ -48,7 +48,7 @@ void Core::Initialize()
 	fmpd0->SetFlowControl();
 
 	fmpd0->SetBlock(65536);
-	//fmpd0->SetBlock(4096);
+	//fmpd0->SetBlock(512);
 
 	fmpd0->SetLatency(16);
 
@@ -192,6 +192,8 @@ unsigned int Core::Acq(unsigned char *Buffer)
 			ReadSize = ReadSize*BLOCK_SIZE;
 
 			fmpd0->Read(/*(unsigned char *)*/Buffer, BytesRead, ReadSize /*BLOCK_SIZE*/ /*Size*/);
+
+			//fmpd0->clearBufferRX();
 		
 		//if (BytesRead == ReadSize)
 			return (unsigned int)BytesRead; //1
@@ -206,7 +208,7 @@ void Core::CheckClear(void)
 {
 	unsigned long	Size = 0;
 	unsigned char	t=0;
-
+	
 	fmpd0->clearBufferRX();
 	Size=fmpd0->GetSize();
 	
