@@ -37,6 +37,8 @@ UInt_t ldcounter=0;
 
 unsigned char graph_counter=1;
 
+unsigned char t=0;
+
 MainFrame::MainFrame(const TGWindow *p, UInt_t w, UInt_t h) : TGMainFrame(p, w, h)
 {	
 	fbslope = true;
@@ -624,9 +626,14 @@ bool MainFrame::Update(){
 
 	//if (core->GetRun()) core->TestCoreRW();
 	//if (core->GetRun()) core->Loopback();
-	/*if (core->GetRun())*/ block_size = core->Acq((unsigned char *)Buffer);
-
+	/*if (core->GetRun())*/ 
+	if (t == 0) block_size = core->Acq((unsigned char *)Buffer);
+	printf("teste\n");
 	if ( block_size > 0 ) {
+		printf("block size: %u\n", block_size);
+		//gSystem->Sleep(2000);
+		t=1;
+		return true;
 		/*
 		for (unsigned int index=0; index<event_count; index++)
 		{
@@ -662,7 +669,7 @@ bool MainFrame::Update(){
 
 				switch(fComboGraph->GetSelected()){
 				//posicao
-					case 1: T_intgraph(Buffer+4, x, y, 0); break;
+					case 1: T_intgraph(Buffer+0, x, y, 0); break;
 					case 2: T_intgraph(Buffer+256, x, y, 0); break;
 					case 3: T_intgraph(Buffer+512, x, y, 0); break;
 					case 4: T_intgraph(Buffer+768, x, y, 0); break;
