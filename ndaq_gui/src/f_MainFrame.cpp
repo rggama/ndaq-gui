@@ -628,12 +628,13 @@ bool MainFrame::Update(){
 	//if (core->GetRun()) core->Loopback();
 	/*if (core->GetRun())*/ 
 	if (t == 0) block_size = core->Acq((unsigned char *)Buffer);
-	printf("teste\n");
+	//printf("teste\n");
 	if ( block_size > 0 ) {
 		printf("block size: %u\n", block_size);
 		//gSystem->Sleep(2000);
-		t=1;
-		return true;
+		//t=1;
+		_getch();
+		//return true;
 		/*
 		for (unsigned int index=0; index<event_count; index++)
 		{
