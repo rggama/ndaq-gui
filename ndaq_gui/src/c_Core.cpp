@@ -76,11 +76,7 @@ void Core::SetRun(bool state)
 	if(state){
 		WriteReg(0x80, 0x80);				//Grant we'll have command responses.
 		//Sleep(50);
-
-		WriteReg(0x82, 0x01);				//Readout Reset Assert
-		//Sleep(16);
-		WriteReg(0x82, 0x00);				//Readout Reset Deassert
-		
+	
 		WriteCore(0x89, 0x01);				//ACQ Reset Assert
 		//Sleep(16);
 		WriteCore(0x89, 0x00);				//ACQ Reset Deassert
@@ -91,8 +87,11 @@ void Core::SetRun(bool state)
 		WriteReg(0x80, 0x00);				//From here we won't have command responses anymore.
 		CheckClear();						//Ensure Receive Buffer is clear.
 
-		WriteReg(0x80, 0x01);				//Vme Readout Enable.
 		WriteReg(0x81, lc_config);			//Vme Channel Selector.
+		WriteReg(0x82, 0x01);				//Readout Reset Assert
+		//Sleep(16);
+		WriteReg(0x82, 0x00);				//Readout Reset Deassert
+		WriteReg(0x80, 0x01);				//Vme Readout Enable.
 				
 		Run = true;
 

@@ -38,3 +38,35 @@ driver stall ?
 
 - Rafael Gama on 14 of feb. 2012.
 
+
+
+
+*** Possible SOLUTION ***
+
+
+1) FTDI driver got stalled because the method Update() is called assynchronically by a thread. Inside Update() there's 
+a call to Acq() method which calls a FTDI Driver function. In the other hand, when 'Run' is pressed the method SetRun() is 
+called and many FTDI Driver functions are executed. The conflict caused by the execution of FTDI Driver functions in parallel 
+is the probable issue which causes the software stall.
+
+- Solution: Only call the Acq() if the method GetRun() is true. The last method gets true only after SetRun()'s complete 
+execution.
+
+
+2) In fact, the hardware is sending the weird 256 bytes without an external triggering signal. That might be due 
+many reasons like (they're gonna be investigated later as it doesn't look like a bug):
+
+- ACQ Enable might resets enabled on FPGA Core.
+- Trigger mode might resets to internal mode on FPGA Core. (Yes, there was a signal running into the hardware durin the bug 
+observation)
+- Electrical Fluctuation on trigger inputs.
+
+- Solution: Readout reset on FPGA Vme (@0x82) was set RIGHT BEFORE the readout enable on software. Note that all FPGA Core
+registers are configured upon that readout reset. So, any data residue caused by the misconfiguration of the FPGA CORE is 
+clear (in the end of the data chain) before the readout enable. That solution corrected the weird_256, in a way that NO data 
+arrives if there is no external trigger signal attached to the hardware.
+
+
+
+- Rafael Gama on 14 of feb. 2012.
+ 

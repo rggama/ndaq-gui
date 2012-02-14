@@ -37,7 +37,6 @@ UInt_t ldcounter=0;
 
 unsigned char graph_counter=1;
 
-unsigned char t=0;
 
 MainFrame::MainFrame(const TGWindow *p, UInt_t w, UInt_t h) : TGMainFrame(p, w, h)
 {	
@@ -627,14 +626,12 @@ bool MainFrame::Update(){
 	//if (core->GetRun()) core->TestCoreRW();
 	//if (core->GetRun()) core->Loopback();
 	/*if (core->GetRun())*/ 
-	if (t == 0) block_size = core->Acq((unsigned char *)Buffer);
-	//printf("teste\n");
-	if ( block_size > 0 ) {
-		printf("block size: %u\n", block_size);
-		//gSystem->Sleep(2000);
-		//t=1;
-		_getch();
-		//return true;
+	if(core->GetRun()) block_size = core->Acq((unsigned char *)Buffer);
+
+	if ( block_size > BLOCK_SIZE-1 ) {
+		//printf("block size: %u\n", block_size);
+		//_getch();
+
 		/*
 		for (unsigned int index=0; index<event_count; index++)
 		{

@@ -1,5 +1,5 @@
 /**/
-#define DEBUG			1
+#define DEBUG			0
 
 #define CONFIG_CHAN		0xC0
 
