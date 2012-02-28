@@ -76,23 +76,23 @@ void Core::SetRun(bool state)
 	if(state){
 		WriteReg(0x80, 0x80);				//Grant we'll have command responses.
 		//Sleep(50);
-	
+		
 		WriteCore(0x89, 0x01);				//ACQ Reset Assert
 		//Sleep(16);
 		WriteCore(0x89, 0x00);				//ACQ Reset Deassert
 
 		//Sleep(20);
 		WriteCore(0x91, 0x00);				//ACQ Register - Bit 7: 0 -> external trigger, 1 -> internal trigger
-
+		
 		WriteReg(0x80, 0x00);				//From here we won't have command responses anymore.
 		CheckClear();						//Ensure Receive Buffer is clear.
 
-		WriteReg(0x81, lc_config);			//Vme Channel Selector.
 		WriteReg(0x82, 0x01);				//Readout Reset Assert
 		//Sleep(16);
 		WriteReg(0x82, 0x00);				//Readout Reset Deassert
 		WriteReg(0x80, 0x01);				//Vme Readout Enable.
-				
+		WriteReg(0x81, lc_config);			//Vme Channel Selector.
+		
 		Run = true;
 
 	//Stop
@@ -101,17 +101,22 @@ void Core::SetRun(bool state)
 		//WriteCore(0x91, 0x00);			//ACQ Disable
 		
 		Run = false;
+		
 		WriteReg(0x81, 0x00);				//Vme Channel Selector - Disable ALL Channels.
 		WriteReg(0x80, 0x00);				//Vme Readout Disable.
 
 		//Sleep(50);
 
 		CheckClear();						//Ensure Receive Buffer is clear.
-		//WriteReg(0xAA, 0x55);				//Resets Vme FPGA
+		//WriteReg(0xAA, 0x55);				//Resets Vme FPGA 
 		WriteReg(0x80, 0x80);				//Return grant to command responses.
+
+		//VERIFICAR!
+		//Sem isso, perde-se a sincronia com 8 canais habilitados
 		//WriteCore(0xAA,0x55);				//Resets Core FPGA
 
 		//*Run = false; //if it really stopped.
+		
 	}	
 }
 

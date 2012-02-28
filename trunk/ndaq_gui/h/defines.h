@@ -8,7 +8,7 @@
 #define HEADER_SIZE		0
 #define EVENT_SIZE		128							//Quantidade de samples por trigger
 //#define GROUP_SIZE		0
-#define BLOCK_SIZE		256 //63488 //256 /*7936 - 63488*/
+#define BLOCK_SIZE		63488 //256 //63488 //256 /*7936 - 63488*/
 #define	MAX_EVENTS		(BLOCK_SIZE / EVENT_SIZE) 
 
 #define _step_			2

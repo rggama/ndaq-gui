@@ -641,6 +641,17 @@ bool MainFrame::Update(){
 				_getch();
 		}
 		*/
+		printf("%u\t%u\t%u\t%u\t%u\t%u\t%u\t%u\n",
+			(unsigned char)Buffer[0]+(unsigned char)Buffer[1]*4, 
+			(unsigned char)Buffer[256]+(unsigned char)Buffer[257]*4,
+			(unsigned char)Buffer[512]+(unsigned char)Buffer[513]*4,
+			(unsigned char)Buffer[768]+(unsigned char)Buffer[769]*4,
+			(unsigned char)Buffer[1024]+(unsigned char)Buffer[1025]*4, 
+			(unsigned char)Buffer[1280]+(unsigned char)Buffer[1281]*4,
+			(unsigned char)Buffer[1536]+(unsigned char)Buffer[1537]*4,
+			(unsigned char)Buffer[1792]+(unsigned char)Buffer[1793]*4);
+
+
 		event_count = block_size/(EVENT_SIZE*_step_);
 
 		totalEvents=totalEvents+event_count;
@@ -792,7 +803,11 @@ bool MainFrame::Update(){
 			printf("cal_count: %0.6u\r", cal_count);
 			cal_count = 0;
 		}
-
+		
+		/*if (totalEvents > 5000){
+			FButtonRunMPD1();
+			FButtonRunMPD1();
+		}*/
 		return true;
 
 	}else return false;
