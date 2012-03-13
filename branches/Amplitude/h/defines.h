@@ -33,8 +33,8 @@
 //#define B				-4.73032f
 
 //NDAQ-01-2010-ADC1 - 2 Vpp
-#define A				2.53037f
-#define B				-5.43545f
+#define A				1 //2.53037f
+#define B				0 //-5.43545f
 
 #define c16E6			16<<20
 #define c16E4			16<<12

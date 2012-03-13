@@ -641,6 +641,8 @@ bool MainFrame::Update(){
 				_getch();
 		}
 		*/
+		
+		
 		printf("%u\t%u\t%u\t%u\t%u\t%u\t%u\t%u\n",
 			(unsigned char)Buffer[0]+(unsigned char)Buffer[1]*4, 
 			(unsigned char)Buffer[256]+(unsigned char)Buffer[257]*4,
@@ -650,7 +652,7 @@ bool MainFrame::Update(){
 			(unsigned char)Buffer[1280]+(unsigned char)Buffer[1281]*4,
 			(unsigned char)Buffer[1536]+(unsigned char)Buffer[1537]*4,
 			(unsigned char)Buffer[1792]+(unsigned char)Buffer[1793]*4);
-
+		
 
 		event_count = block_size/(EVENT_SIZE*_step_);
 
@@ -699,7 +701,7 @@ bool MainFrame::Update(){
 				//graph1->SetMarkerSize(1);
 				//graph1->SetMarkerColor(kRed);
 				graph1->SetLineColor(kRed);
-				graph1->GetYaxis()->SetRangeUser(-220, 50);
+				graph1->GetYaxis()->SetRangeUser(-50, 220);
 				graph1->GetXaxis()->SetRangeUser(0, (EVENT_SIZE/**TIMEBIN*/));				
 				graph1->Draw("AL");			
 
@@ -798,7 +800,7 @@ bool MainFrame::Update(){
 		}
 
 		//Test Save Count Limit
-		if (cal_count > 100000){
+		if (cal_count > 200000){
 			FButtonRunMPD1();
 			printf("cal_count: %0.6u\r", cal_count);
 			cal_count = 0;
