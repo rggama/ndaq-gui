@@ -75,7 +75,14 @@ void Core::SetRun(bool state)
 	//Start
 	if(state){
 		WriteReg(0x80, 0x80);				//Grant we'll have command responses.
+
+		WriteCore(0x7B, 0x00);				//Internal Trigger Slope: 0 -> rising, 1 -> falling
+		WriteCore(0x77, 0x00);				//Th1: low
+		WriteCore(0x78, 0x00);				//Th1: high
+		WriteCore(0x79, 0x32);				//Th2: low
+		WriteCore(0x7A, 0x00);				//Th2: high
 		//Sleep(50);
+		WriteCore(0x00, 0x01);				//MODO Amplitude ou Frequencia. 0x00 -> Amplitude, 0x01 -> Frequencia.
 		
 		WriteCore(0x89, 0x01);				//ACQ Reset Assert
 		//Sleep(16);
@@ -194,6 +201,7 @@ unsigned int Core::Acq(unsigned char *Buffer)
 
 			ReadSize = Size/BLOCK_SIZE;
 			ReadSize = ReadSize*BLOCK_SIZE;
+			//ReadSize = Size;
 
 			fmpd0->Read(/*(unsigned char *)*/Buffer, BytesRead, ReadSize /*BLOCK_SIZE*/ /*Size*/);
 

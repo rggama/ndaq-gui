@@ -148,8 +148,8 @@ unsigned int SaveNTable(char *namevector, unsigned char t_channels, unsigned int
 		//line
 		for(unsigned int i=(c*(EVENT_SIZE*_step_));i<block_size;i+=((EVENT_SIZE*_step_)*t_channels)){
 		
-			peak = GetNPeak(buffer, i, PK_START, PK_END)*A+B;
-			base = GetBaseline(buffer, i)*A+B;
+			peak = GetNPeak(buffer, i, PK_START, PK_END);//*A+B;
+			base = GetBaseline(buffer, i);//*A+B;
 			//intg = GetPInt(buffer, base, i, INT_START, INT_END)*A+B;
 
 			fprintf(file, "%0.2f\t%0.2f\n", base, (peak - (base)));
