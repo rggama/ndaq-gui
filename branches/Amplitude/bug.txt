@@ -1,0 +1,72 @@
+1) Turn the hardware on/Run the software.
+
+2) Do NOT connect an external trigger signal. Set 'Run' in external trigger mode and watch the Console window.
+
+- Buffer Size will toggle between 0 and 1 - This is the command response sequence.
+- When the toggling stops, buffer size is going to be 256. (Yes, that's strange. There should NOT be data avaiable as there is no triggering signal)
+- Note that the 'Run' button keeps showing 'Run'. It hasn't toggled to 'Stop'. The software is STALLED and it looks like that the FTDI driver did it.
+
+3) Change focus back to the Main Window and plug the external trigger signal @ 5 KHz (the frequency when this was observed).
+
+- Now the 'Run' button should have changed to 'Stop'. The software is not stalled anymore.
+
+4) Press any key on the Console Window to pass thru the getch() on code.
+
+- Note that Buffer Size = block size = 63488. (Yes, that's fine.)
+
+- Waveform must be WRONG. In fact, one byte shifted. This will destroy the byte oriented sample reconstruction.
+
+5) If you Stop/Run, the Waveform is going to be right.
+
+
+
+***
+
+Preliminary thoughts:
+
+As written before... There should not be the first 256 bytes without triggering signal. Right after those bytes arrival, 
+there softwar gets stalled. So... 
+
+1) Is there any relation with a possible bad behavior of the USB transceiver and the possible FTDI 
+driver stall ? 
+
+2) USB transceiver bad behavior is caused by FPGA fail ?
+
+3) Is it possible that the weird 256 bytes block would be related to the command/command response bug ?
+
+
+
+- Rafael Gama on 14 of feb. 2012.
+
+
+
+
+*** Possible SOLUTION ***
+
+
+1) FTDI driver got stalled because the method Update() is called assynchronically by a thread. Inside Update() there's 
+a call to Acq() method which calls a FTDI Driver function. In the other hand, when 'Run' is pressed the method SetRun() is 
+called and many FTDI Driver functions are executed. The conflict caused by the execution of FTDI Driver functions in parallel 
+is the probable issue which causes the software stall.
+
+- Solution: Only call the Acq() if the method GetRun() is true. The last method gets true only after SetRun()'s complete 
+execution.
+
+
+2) In fact, the hardware is sending the weird 256 bytes without an external triggering signal. That might be due 
+many reasons like (they're gonna be investigated later as it doesn't look like a bug):
+
+- ACQ Enable might resets enabled on FPGA Core.
+- Trigger mode might resets to internal mode on FPGA Core. (Yes, there was a signal running into the hardware durin the bug 
+observation)
+- Electrical Fluctuation on trigger inputs.
+
+- Solution: Readout reset on FPGA Vme (@0x82) was set RIGHT BEFORE the readout enable on software. Note that all FPGA Core
+registers are configured upon that readout reset. So, any data residue caused by the misconfiguration of the FPGA CORE is 
+clear (in the end of the data chain) before the readout enable. That solution corrected the weird_256, in a way that NO data 
+arrives if there is no external trigger signal attached to the hardware.
+
+
+
+- Rafael Gama on 14 of feb. 2012.
+ 
