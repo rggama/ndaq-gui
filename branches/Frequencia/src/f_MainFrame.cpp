@@ -615,6 +615,8 @@ bool MainFrame::Update(){
 	//float base = 0;
 	unsigned int residue=0;
 	int etime=0;
+	
+	unsigned long freq = 0;
 
 	unsigned int i,j;
 
@@ -628,7 +630,7 @@ bool MainFrame::Update(){
 	/*if (core->GetRun())*/ 
 	if(core->GetRun()) block_size = core->Acq((unsigned char *)Buffer);
 
-	if ( block_size > BLOCK_SIZE-1 ) {
+	if ( block_size > 0 /*BLOCK_SIZE-1*/ ) {
 		//printf("block size: %u\n", block_size);
 		//_getch();
 
@@ -641,16 +643,16 @@ bool MainFrame::Update(){
 				_getch();
 		}
 		*/
-		printf("%u\t%u\t%u\t%u\t%u\t%u\t%u\t%u\n",
-			(unsigned char)Buffer[0]+(unsigned char)Buffer[1]*4, 
-			(unsigned char)Buffer[256]+(unsigned char)Buffer[257]*4,
-			(unsigned char)Buffer[512]+(unsigned char)Buffer[513]*4,
-			(unsigned char)Buffer[768]+(unsigned char)Buffer[769]*4,
-			(unsigned char)Buffer[1024]+(unsigned char)Buffer[1025]*4, 
-			(unsigned char)Buffer[1280]+(unsigned char)Buffer[1281]*4,
-			(unsigned char)Buffer[1536]+(unsigned char)Buffer[1537]*4,
-			(unsigned char)Buffer[1792]+(unsigned char)Buffer[1793]*4);
-
+		
+		
+		//printf("%u\n",(unsigned char)Buffer[0]+(unsigned char)Buffer[1]*4);
+		
+		for(unsigned int c=0; c<128; c++)
+			freq += ((unsigned char)Buffer[0]+(unsigned char)Buffer[1]*4);
+		
+		freq = freq/12.8;
+		
+		printf("freq: %u\n", freq);
 
 		event_count = block_size/(EVENT_SIZE*_step_);
 
@@ -798,7 +800,7 @@ bool MainFrame::Update(){
 		}
 
 		//Test Save Count Limit
-		if (cal_count > 100000){
+		if (cal_count > 200000){
 			FButtonRunMPD1();
 			printf("cal_count: %0.6u\r", cal_count);
 			cal_count = 0;
