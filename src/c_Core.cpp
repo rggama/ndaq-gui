@@ -75,14 +75,22 @@ void Core::SetRun(bool state)
 	//Start
 	if(state){
 		WriteReg(0x80, 0x80);				//Grant we'll have command responses.
+
+		WriteCore(0x7B, 0x00);				//Internal Trigger Slope: 0 -> rising, 1 -> falling
+		WriteCore(0x77, 0x00);				//Th1: low
+		WriteCore(0x78, 0x00);				//Th1: high
+		WriteCore(0x79, 0x32);				//Th2: low
+		WriteCore(0x7A, 0x00);				//Th2: high
+
 		//Sleep(50);
+		WriteCore(0x00, 0x00);				//ACQ Reset Assert
 		
 		WriteCore(0x89, 0x01);				//ACQ Reset Assert
 		//Sleep(16);
 		WriteCore(0x89, 0x00);				//ACQ Reset Deassert
 
 		//Sleep(20);
-		WriteCore(0x91, 0x00);				//ACQ Register - Bit 7: 0 -> external trigger, 1 -> internal trigger
+		WriteCore(0x91, 0x80);				//ACQ Register - Bit 7: 0 -> external trigger, 1 -> internal trigger
 		
 		WriteReg(0x80, 0x00);				//From here we won't have command responses anymore.
 		CheckClear();						//Ensure Receive Buffer is clear.
