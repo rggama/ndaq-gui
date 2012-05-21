@@ -3,7 +3,14 @@ class pthread_cond_t;
 class pthread_mutex_t;
 #endif
 
+#include "defines.h"
+
+#ifndef LINUX
 #include <windows.h>
+#else
+typedef unsigned int DWORD;
+#endif
+
 //#include "TObjString.h"
 //#include "TList.h"
 //#include "WinTypes.h"

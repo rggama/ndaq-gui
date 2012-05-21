@@ -8,9 +8,8 @@
 //=============================================================================
 #include "defines.h"
 
-#include <conio.h> //Why does it hurt when I pee? Seriouslly, why is that here?
-
 #include "f_MainFrame.h"
+//#include "main.h"
 
 #include "a_graph.h"
 #include "a_laudo.h"
@@ -36,7 +35,9 @@ UInt_t dcounter=0;
 UInt_t ldcounter=0;
 
 unsigned char graph_counter=1;
-
+bool running=false;
+bool saving=false;
+int start_time=0;
 
 MainFrame::MainFrame(const TGWindow *p, UInt_t w, UInt_t h) : TGMainFrame(p, w, h)
 {	
@@ -264,8 +265,8 @@ MainFrame::MainFrame(const TGWindow *p, UInt_t w, UInt_t h) : TGMainFrame(p, w, 
 	fgroupTrigg->AddFrame(new TGLabel(fgroupTrigg, new TGHotString("Mode:")));	
   	fComboTri = new TGComboBox(fgroupTrigg,-1,kHorizontalFrame | kSunkenFrame | kDoubleBorder | kOwnBackground);
   	fComboTri->AddEntry("External", 0);
-  	fComboTri->AddEntry("A Internal", 1);
-  	fComboTri->AddEntry("D Internal", 2);
+  	fComboTri->AddEntry("Internal", 1);
+  	fComboTri->AddEntry("Frequency", 2);
   	fComboTri->Select(0, kTRUE);
   	fComboTri->Resize(100,20);
 	fComboTri->Connect("Selected(Int_t)","MainFrame",this,"HandleComboTri()");
@@ -289,22 +290,24 @@ MainFrame::MainFrame(const TGWindow *p, UInt_t w, UInt_t h) : TGMainFrame(p, w, 
 	//fNumTreshold->SetIntNumber(10);
 	fNumTreshold->Resize(55,20);
 	fNumTreshold->SetState(kFALSE);
+	//fNumTreshold->SetState(kTRUE);
 	fgroupTrigg->AddFrame(fNumTreshold);
 
   	//Slope Button and Label
 	fgroupTrigg->AddFrame(new TGLabel(fgroupTrigg, new TGHotString("Slope:")));
-  	fPButtonSlope = new TGPictureButton(fgroupTrigg,gClient->GetPicture("./icons/slopeup.png"));
+  	//fPButtonSlope = new TGPictureButton(fgroupTrigg,gClient->GetPicture("./icons/slopeup.png"));
+  	fPButtonSlope = new TGTextButton(fgroupTrigg,"P");
    	fPButtonSlope->Resize(20,20);
    	fPButtonSlope->Connect("Clicked()","MainFrame",this,"FButtonSlope()");
-	fPButtonSlope->SetEnabled(kFALSE);
+	fPButtonSlope->SetEnabled(kTRUE);
    	fgroupTrigg->AddFrame(fPButtonSlope);
 
 	//Apply Button 
-  	fButtonApply = new TGTextButton(fgroupTrigg,"Apply");
-  	fButtonApply->Connect("Clicked()","MainFrame",this,"FButtonConfig()");
-  	fButtonApply->SetEnabled(kFALSE);
-  	fButtonApply->Resize(50,20);
-   	fgroupTrigg->AddFrame(fButtonApply);
+  	//fButtonApply = new TGTextButton(fgroupTrigg,"Apply");
+  	//fButtonApply->Connect("Clicked()","MainFrame",this,"FButtonConfig()");
+  	//fButtonApply->SetEnabled(kFALSE);
+  	//fButtonApply->Resize(50,20);
+   	//fgroupTrigg->AddFrame(fButtonApply);
 	
   	fRGroupFrame->AddFrame(fgroupTrigg, new TGLayoutHints(kLHintsLeft | kLHintsTop,10,10,0,0));
 	
@@ -316,6 +319,18 @@ MainFrame::MainFrame(const TGWindow *p, UInt_t w, UInt_t h) : TGMainFrame(p, w, 
 
 	//2 column, n rows
 	fgroupCtrl->SetLayoutManager(new TGMatrixLayout(fgroupCtrl, 0, 2, 10));
+
+	//Create Count NumberEntry
+	fgroupCtrl->AddFrame(new TGLabel(fgroupCtrl, new TGHotString("Count (#):")));	
+	fCount = new TGNumberEntry(fgroupCtrl,0,8,-1,TGNumberFormat::kNESInteger,
+						TGNumberFormat::kNEAAnyNumber,TGNumberFormat::kNELLimitMinMax,0,10000000);
+  	fgroupCtrl->AddFrame(fCount);
+
+	//Create Time NumberEntry
+	fgroupCtrl->AddFrame(new TGLabel(fgroupCtrl, new TGHotString("Time (s):")));	
+	fTime = new TGNumberEntry(fgroupCtrl,0,8,-1,TGNumberFormat::kNESInteger,
+						TGNumberFormat::kNEAAnyNumber,TGNumberFormat::kNELLimitMinMax,0,10000000);
+  	fgroupCtrl->AddFrame(fTime);
 
 	//Run Button  
 	fgroupCtrl->AddFrame(new TGLabel(fgroupCtrl, new TGHotString("Acquisition:")));
@@ -343,6 +358,11 @@ MainFrame::MainFrame(const TGWindow *p, UInt_t w, UInt_t h) : TGMainFrame(p, w, 
 
 	//Save Table
 	fgroupCtrl->AddFrame(new TGLabel(fgroupCtrl, new TGHotString("Save Table:")));
+
+
+
+
+
 	fTable = new TGCheckButton(fgroupCtrl);
 	fTable->SetState(kButtonUp);
 	fTable->Connect("Clicked()", "MainFrame", this, "HandleCheckBoxes()");
@@ -406,20 +426,21 @@ MainFrame::MainFrame(const TGWindow *p, UInt_t w, UInt_t h) : TGMainFrame(p, w, 
 		fStatusBar->SetText("Already Connected! Something Wrong?!",0);
 	else if (r == 1){
 	  	fStatusBar->SetText("Connected!",0);
-  		fButtonApply->SetEnabled(kTRUE);
+  		//fButtonApply->SetEnabled(kTRUE);
+		core->Initialize();
+		//new Thread();
 		fButtonRunMPD1->SetEnabled(kTRUE);
 	}else{
 	  	fStatusBar->SetText("Connection Failed.",0);
-		fButtonApply->SetEnabled(kFALSE);
+		//fButtonApply->SetEnabled(kFALSE);
 	 	fButtonRunMPD1->SetEnabled(kFALSE);
 	}
-
-	core->Initialize();
 }
 
 // Destructor
 MainFrame::~MainFrame()
 {
+	printf("\nDestructor!\n");
 	DeleteWindow();
 	Cleanup();
 }
@@ -427,11 +448,11 @@ MainFrame::~MainFrame()
 // Close Window
 void MainFrame::CloseWindow()
 {
+	printf("\nCloseWindow()!\n");
+	
 	// Terminates the application.
 	gApplication->Terminate();
-	//delete core;
-	//delete setts;
-	//delete this;
+	delete this;
 }
 
 void MainFrame::HandleMenu(Int_t id)
@@ -445,7 +466,7 @@ void MainFrame::HandleMenu(Int_t id)
 	  
 		case M_SETTINGS_CHANNELS:
 			fChannels = new fChannelsFrame(gClient->GetRoot(), this, 400, 200);
-			fChannels->Connect("SettingsChanged()", "MainFrame", "this", "SettingsUpdate()");
+			fChannels->Connect("SettingsChanged()", "MainFrame", this, "SettingsUpdate()");
 			break;
 		
 		case M_VIEW_GRAPHS:
@@ -520,21 +541,21 @@ void MainFrame::HandleComboTri()
 	if(fComboTri->GetSelected() == 1){
 		fComboFrom->SetEnabled(kTRUE);
 		fNumTreshold->SetState(kTRUE);
-		fPButtonSlope->SetEnabled(kFALSE);
+		fPButtonSlope->SetEnabled(kTRUE);
 	}else{
 		fComboFrom->SetEnabled(kFALSE);
 		fNumTreshold->SetState(kFALSE);
-		fPButtonSlope->SetEnabled(kFALSE);
+		fPButtonSlope->SetEnabled(kTRUE);
 	} 
 }
 
 void MainFrame::FButtonSlope()
 {
 	if(fbslope){
-		fPButtonSlope->SetPicture(gClient->GetPicture("./icons/slopedown.png"));
+		fPButtonSlope->SetText("N");
 		fbslope = false;
 	}else{
-		fPButtonSlope->SetPicture(gClient->GetPicture("./icons/slopeup.png"));
+		fPButtonSlope->SetText("P");
 		fbslope = true;
 	}
 }	
@@ -546,10 +567,16 @@ void MainFrame::FButtonConfig()
 
 void MainFrame::FButtonRunMPD1()
 {
+	Double_t th=0;
+
 	//Stop
 	//If 'running', the only way is stop it.
 	if  (core->GetRun()){
+		//printf("\nStop!\n");		
+		//Toggle Running!
+		core->ToggleRun();
 		fButtonRunMPD1->SetText("Run");
+		running=false;
 	}
 	//Start
 	//If 'not running', the only way is start it.
@@ -558,27 +585,34 @@ void MainFrame::FButtonRunMPD1()
 		totalEvents=0;
 		cal_count=0;
 		fNumEvents->SetIntNumber(totalEvents);
-		t_zero = (int)time(NULL);
 		fButtonRunMPD1->SetText("Stop");
+	
+		th = fNumTreshold->GetNumber()*0.3859f+1.576f;
+		
+		switch(fComboTri->GetSelected())
+		{	
+			//External
+			case 0: core->SetTrigger(true, fbslope, (signed short) th); break;
+			//Internal			
+			case 1: core->SetTrigger(false, fbslope, (signed short) th); break;
+			//Frequency			
+			case 2: core->SetTrigger(false, fbslope, (signed short) th); break;
+		}
+
+		//Configure Channels
+		core->SetChannels(setts->GetChanConfig());
+		//Toggle Running!
+		core->ToggleRun();
+		//printf("\nt_zero!\n");
+		t_zero = (int)time(NULL);
+		running = true;
 	}
 	
-	//Configure Channels
-	core->SetChannels(setts->GetChanConfig());
-	//Toggle Running!
-	core->ToggleRun();
 }
 
 void MainFrame::HandleCheckBoxes()
 {
-	//char namevector[160];
-
-	/*** TESTING ***/
-	//if (fSave->GetState() != kButtonUp)
-	//{
-	//	//Setting Filenames
-	//	SetFilename(setts->GetChanConfig(), namevector, filename, suffix);
-	//	SaveWave(namevector, setts->GetChanTotal());
-	//}
+	//
 }
 
 bool MainFrame::Update(){
@@ -595,11 +629,11 @@ bool MainFrame::Update(){
 	//N(signed int) = N << 4
 	//
 	//By shifting left N four times, we are moving the signal bit to the right place on a signed int type.
-	//Now, N is signed but 16 times greater. So, let´s move it back to its original magnitude:
+	//Now, N is signed but 16 times greater. So, letÅ½s move it back to its original magnitude:
 	//
 	//N(signed int) = N >> 4
 	//
-	//That´s all, folks.
+	//ThatÅ½s all, folks.
 
 	signed char Buffer[BUFFER];
 	unsigned int block_size=0;
@@ -615,6 +649,7 @@ bool MainFrame::Update(){
 	//float base = 0;
 	unsigned int residue=0;
 	int etime=0;
+	int stime=0;
 
 	unsigned int i,j;
 
@@ -623,15 +658,39 @@ bool MainFrame::Update(){
 
 	/********************************************************************************************/
 
+	if (core->GetRun() && running == true)
+	{
+		etime = ((int)time(NULL)-t_zero);
+		fNumTime->SetIntNumber(etime);
+
+		//SAVE TIME CHECK
+		if((fScal->GetState() != kButtonUp) || (fSave->GetState() != kButtonUp) || (fTable->GetState() != kButtonUp)){
+			if(saving==false)
+			{
+				saving=true;
+				start_time = etime;
+			}
+			stime = etime-start_time;
+			//printf("sv: %u - e: %u - st: %u - z: %u\n", stime, etime, start_time, t_zero);
+		}else
+			saving=false;
+
+		//Test Save Count Limit
+		if ((stime >= fTime->GetIntNumber()) && (fTime->GetIntNumber() > 0) && saving == true){
+			start_time = 0;
+			printf("\ntime: %0.6u\n", stime);
+			FButtonRunMPD1();
+		}
+
+	}
+
+	/********************************************************************************************/
+
 	//if (core->GetRun()) core->TestCoreRW();
 	//if (core->GetRun()) core->Loopback();
-	/*if (core->GetRun())*/ 
-	if(core->GetRun()) block_size = core->Acq((unsigned char *)Buffer);
+	if (core->GetRun() && running == true) block_size = core->Acq((unsigned char *)Buffer);
 
 	if ( block_size > BLOCK_SIZE-1 ) {
-		//printf("block size: %u\n", block_size);
-		//_getch();
-
 		/*
 		for (unsigned int index=0; index<event_count; index++)
 		{
@@ -641,26 +700,14 @@ bool MainFrame::Update(){
 				_getch();
 		}
 		*/
-		printf("%u\t%u\t%u\t%u\t%u\t%u\t%u\t%u\n",
-			(unsigned char)Buffer[0]+(unsigned char)Buffer[1]*4, 
-			(unsigned char)Buffer[256]+(unsigned char)Buffer[257]*4,
-			(unsigned char)Buffer[512]+(unsigned char)Buffer[513]*4,
-			(unsigned char)Buffer[768]+(unsigned char)Buffer[769]*4,
-			(unsigned char)Buffer[1024]+(unsigned char)Buffer[1025]*4, 
-			(unsigned char)Buffer[1280]+(unsigned char)Buffer[1281]*4,
-			(unsigned char)Buffer[1536]+(unsigned char)Buffer[1537]*4,
-			(unsigned char)Buffer[1792]+(unsigned char)Buffer[1793]*4);
-
-
 		event_count = block_size/(EVENT_SIZE*_step_);
 
 		totalEvents=totalEvents+event_count;
-		etime = ((int)time(NULL)-t_zero);
 		
+		fNumEvents->SetIntNumber(totalEvents);
+
 		if (etime > 0)
 			fNumRxRate->SetNumber((Double_t) (((totalEvents*(EVENT_SIZE*_step_))/etime)/1024) );
-
-		fNumEvents->SetIntNumber(totalEvents);
 
 		//fNumCounter->SetIntNumber(dcounter);
 
@@ -674,11 +721,11 @@ bool MainFrame::Update(){
 					_getch();
 			}*/
 			
-			if (setts->GetGraphsOpen() == false){
+			if (1/*setts->GetGraphsOpen() == false*/){
 
 				switch(fComboGraph->GetSelected()){
 				//posicao
-					case 1: T_intgraph(Buffer+0, x, y, 0); break;
+					case 1: T_intgraph(Buffer+1, x, y, 0); break;
 					case 2: T_intgraph(Buffer+256, x, y, 0); break;
 					case 3: T_intgraph(Buffer+512, x, y, 0); break;
 					case 4: T_intgraph(Buffer+768, x, y, 0); break;
@@ -689,7 +736,7 @@ bool MainFrame::Update(){
 				}
 								
 				//Initialize graph1
- 				//fEcanvas1->GetCanvas()->cd();
+ 				fEcanvas1->GetCanvas()->cd();
  				//if(graph1) delete graph1;
 				
 				graph1 = new TGraph(EVENT_SIZE, x, y);
@@ -699,7 +746,7 @@ bool MainFrame::Update(){
 				//graph1->SetMarkerSize(1);
 				//graph1->SetMarkerColor(kRed);
 				graph1->SetLineColor(kRed);
-				graph1->GetYaxis()->SetRangeUser(-220, 50);
+				graph1->GetYaxis()->SetRangeUser(-600, 600);
 				graph1->GetXaxis()->SetRangeUser(0, (EVENT_SIZE/**TIMEBIN*/));				
 				graph1->Draw("AL");			
 
@@ -708,7 +755,7 @@ bool MainFrame::Update(){
 				switch(graph_counter){
 				//posicao
 					case 1: 
-						T_intgraph(Buffer+000, x, y, 0); 
+						T_intgraph(Buffer+0, x, y, 0); 
 						fGraphs->fEcanvas1->GetCanvas()->cd(); 
 						fGraphs->fEcanvas1->GetCanvas()->Update(); 
 					break;
@@ -748,15 +795,17 @@ bool MainFrame::Update(){
 						fGraphs->fEcanvas8->GetCanvas()->Update(); 
 					break;
 				}
-				
-				sprintf(ch, "%s %u", "Ch", graph_counter);
-				graph1 = new TGraph(EVENT_SIZE, x, y);
-				graph1->SetTitle(ch);
-				graph1->SetEditable(kFALSE);
-				graph1->SetLineColor(kRed);
-				graph1->GetYaxis()->SetRangeUser(-220, 50);
-				graph1->GetXaxis()->SetRangeUser(0, (EVENT_SIZE/**TIMEBIN*/));				
-				graph1->Draw("AL");
+
+				//fEcanvas1->GetCanvas()->cd();
+
+				//sprintf(ch, "%s %u", "Ch", graph_counter);
+				//graph1 = new TGraph(EVENT_SIZE, x, y);
+				//graph1->SetTitle(ch);
+				//graph1->SetEditable(kFALSE);
+				//graph1->SetLineColor(kRed);
+				//graph1->GetYaxis()->SetRangeUser(-220, 50);
+				//graph1->GetXaxis()->SetRangeUser(0, (EVENT_SIZE/**TIMEBIN*/));				
+				//graph1->Draw("AL");
 
 				graph_counter++;
 				if (graph_counter == 9) graph_counter = 1;
@@ -775,7 +824,6 @@ bool MainFrame::Update(){
 		//MEASURES
 		if(1){
 
-			fNumTime->SetIntNumber(etime);
 			//fNumBaseline->SetNumber((base = get_baseline(yCAL)));
 			//fNumAmplitude->SetNumber(get_amplitude(EVENT_SIZE,base,yCAL));
 			//fNumCharge->SetNumber(get_charge(EVENT_SIZE,base,yCAL));
@@ -783,32 +831,32 @@ bool MainFrame::Update(){
 		
 		//SAVE CAL
 		if(fScal->GetState() != kButtonUp){
-			cal_count+= SaveCal(namevector, setts->GetChanTotal(), block_size, Buffer);
+			cal_count+= SaveCal(namevector, setts->GetChanTotal(), block_size, Buffer+1);
 		}
 
 		//SAVE WAVE
 		if(fSave->GetState() != kButtonUp){
-			SaveWave(namevector, setts->GetChanTotal(), block_size, Buffer);
-
+			SaveWave(namevector, setts->GetChanTotal(), block_size, Buffer+1);
 		}
 
 		//SAVE TABLE
 		if(fTable->GetState() != kButtonUp){
-			cal_count+= SaveNTable(namevector, setts->GetChanTotal(), block_size, Buffer); 
+			if (fbslope == false)			
+				cal_count+= SaveNTable(namevector, setts->GetChanTotal(), block_size, Buffer+1);
+			else
+				cal_count+= SavePTable(namevector, setts->GetChanTotal(), block_size, Buffer+1);
 		}
 
 		//Test Save Count Limit
-		if (cal_count > 100000){
-			FButtonRunMPD1();
-			printf("cal_count: %0.6u\r", cal_count);
+		if ((cal_count >= fCount->GetIntNumber()) && (fCount->GetIntNumber() > 0)){
+			printf("\ncal_count: %0.6u\n", cal_count);
 			cal_count = 0;
+			FButtonRunMPD1();
 		}
-		
-		/*if (totalEvents > 5000){
-			FButtonRunMPD1();
-			FButtonRunMPD1();
-		}*/
+
 		return true;
 
-	}else return false;
+	}
+	
+	return false;
 }

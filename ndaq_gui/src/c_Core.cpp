@@ -8,12 +8,22 @@
 //=============================================================================
 #include "defines.h"
 #include <stdio.h>
+
+#ifndef LINUX
 #include <conio.h>
+#else
+#include <unistd.h>
+#include <iostream>
+#define _getch()	std::cin.get();
+#define	Sleep(x)	usleep((x*1000));
+#endif
 
 #include "c_Core.h"
 
 #define E	printf("WriteReg Error!\n")
 #define R	if (DEBUG) printf("Response 0x%0.2X\n", r)
+
+
 
 Core::Core()
 {
@@ -48,7 +58,7 @@ void Core::Initialize()
 	fmpd0->SetFlowControl();
 
 	fmpd0->SetBlock(65536);
-	//fmpd0->SetBlock(512);
+	//fmpd0->SetBlock(4096);
 
 	fmpd0->SetLatency(16);
 
@@ -64,6 +74,52 @@ void Core::SetChannels(unsigned char c_config)
 	lc_config = c_config;
 }
 
+void Core::SetTrigger(bool mode, bool slope, signed short th)
+{
+	unsigned char temp=0;
+
+	//if slope is falling...
+	if (slope == false)		
+		WriteCore(0x7B, 0x01);				//Internal Trigger Slope: 0 -> rising, 1 -> falling	
+	//if slope is rising...	
+	else
+		WriteCore(0x7B, 0x00);
+
+	//if slope is falling...
+	if (slope == false)
+	{	
+		printf("\nLow byte: 0x%02X - High byte: 0x%02X\n", (unsigned char) th, ((th >> 8) & 0x03));
+		WriteCore(0x79, (unsigned char) th);		//Th2: low byte
+		temp = (th >> 8) & 0x03; 
+		WriteCore(0x7A, temp);				//Th2: high byte
+		//Hysteresis        
+		th = th+1;
+		WriteCore(0x77, (unsigned char) th);		//Th1: low byte
+		temp = (th >> 8) & 0x03; 
+		WriteCore(0x78, temp);				//Th1: high byte
+	}
+	//if slope is rising...
+	else
+	{
+		printf("\nLow byte: 0x%02X - High byte: 0x%02X\n", (unsigned char) th, ((th >> 8) & 0x03));
+		WriteCore(0x79, (unsigned char) th);		//Th2: low byte
+		temp = (th >> 8) & 0x03; 
+		WriteCore(0x7A, temp);				//Th2: high byte
+		//Hysteresis        
+		th = th-1;
+		WriteCore(0x77, (unsigned char) th);		//Th1: low byte
+		temp = (th >> 8) & 0x03; 
+		WriteCore(0x78, temp);				//Th1: high byte
+	}
+	
+	//if trigger is internal...
+	if (mode == false)
+		WriteCore(0x91, 0x80);				//ACQ Register - Bit 7: 0 -> external trigger, 1 -> internal trigger
+	//if trigger is external...	
+	else
+		WriteCore(0x91, 0x00);
+}	
+
 void Core::SetRun(bool state)
 {
 	unsigned char b_btst = 0x01;
@@ -75,17 +131,25 @@ void Core::SetRun(bool state)
 	//Start
 	if(state){
 		WriteReg(0x80, 0x80);				//Grant we'll have command responses.
+
+		//WriteCore(0x7B, 0x00);			//Internal Trigger Slope: 0 -> rising, 1 -> falling
+		//WriteCore(0x77, 0x00);			//Th1: low
+		//WriteCore(0x78, 0x00);			//Th1: high
+		//WriteCore(0x79, 0x32);			//Th2: low
+		//WriteCore(0x7A, 0x00);			//Th2: high
+
 		//Sleep(50);
+		WriteCore(0x00, 0x00);				//
 		
 		WriteCore(0x89, 0x01);				//ACQ Reset Assert
 		//Sleep(16);
 		WriteCore(0x89, 0x00);				//ACQ Reset Deassert
 
 		//Sleep(20);
-		WriteCore(0x91, 0x00);				//ACQ Register - Bit 7: 0 -> external trigger, 1 -> internal trigger
+		//WriteCore(0x91, 0x00);			//ACQ Register - Bit 7: 0 -> external trigger, 1 -> internal trigger
 		
 		WriteReg(0x80, 0x00);				//From here we won't have command responses anymore.
-		CheckClear();						//Ensure Receive Buffer is clear.
+		CheckClear();					//Ensure Receive Buffer is clear.
 
 		WriteReg(0x82, 0x01);				//Readout Reset Assert
 		//Sleep(16);
@@ -115,11 +179,64 @@ void Core::SetRun(bool state)
 		//Sem isso, perde-se a sincronia com 8 canais habilitados
 		//WriteCore(0xAA,0x55);				//Resets Core FPGA
 
-		//*Run = false; //if it really stopped.
+		//Run = false; //if it really stopped.
 		
 	}	
 }
 
+/*
+void Core::SetRun(bool state)
+{
+	unsigned char b_btst = 0x01;
+	unsigned char n_btst = 0x01;
+	unsigned char adc_pwdn = 0x0F;
+
+	
+	
+	//Start
+	if(state){
+		WriteReg(0x80, 0x80);				//Grant we'll have command responses.
+		//Sleep(50);
+
+		WriteReg(0x82, 0x01);				//Readout Reset Assert
+		//Sleep(16);
+		WriteReg(0x82, 0x00);				//Readout Reset Deassert
+		
+		WriteCore(0x89, 0x01);				//ACQ Reset Assert
+		//Sleep(16);
+		WriteCore(0x89, 0x00);				//ACQ Reset Deassert
+
+		//Sleep(20);
+		WriteCore(0x91, 0x00);				//ACQ Register - Bit 7: 0 -> external trigger, 1 -> internal trigger
+
+		WriteReg(0x80, 0x00);				//From here we won't have command responses anymore.
+		CheckClear();						//Ensure Receive Buffer is clear.
+
+		WriteReg(0x80, 0x01);				//Vme Readout Enable.
+		WriteReg(0x81, lc_config);			//Vme Channel Selector.
+				
+		Run = true;
+
+	//Stop
+	}else{
+		//WriteCore(0x87, 0x00);			//ADC Power-down
+		//WriteCore(0x91, 0x00);			//ACQ Disable
+		
+		Run = false;
+		WriteReg(0x81, 0x00);				//Vme Channel Selector - Disable ALL Channels.
+		WriteReg(0x80, 0x00);				//Vme Readout Disable.
+
+		//Sleep(50);
+
+		CheckClear();						//Ensure Receive Buffer is clear.
+		//WriteReg(0xAA, 0x55);				//Resets Vme FPGA
+		WriteReg(0x80, 0x80);				//Return grant to command responses.
+		//WriteCore(0xAA,0x55);				//Resets Core FPGA
+
+		//*Run = false; //if it really stopped.
+	}	
+}
+*/
 /*
 void Core::SetRun(bool state)
 {
@@ -174,16 +291,18 @@ void Core::ToggleRun()
 	//Do not change 'Run'. Let 'SetRun' do it based on hardware check.
 	if (Run)
 		SetRun(false);
+		//Run = false;
 	else
 		SetRun(true);
+		//Run = true;
 }
 
 //READ ON DEMAND :D
 unsigned int Core::Acq(unsigned char *Buffer)
 {
-	unsigned long BytesRead = 0;
-	unsigned long Size = 0;
-	unsigned long ReadSize = 0;
+	DWORD BytesRead = 0;
+	DWORD Size = 0;
+	DWORD ReadSize = 0;
 
 	Size=fmpd0->GetSize();
 	
@@ -196,8 +315,6 @@ unsigned int Core::Acq(unsigned char *Buffer)
 			ReadSize = ReadSize*BLOCK_SIZE;
 
 			fmpd0->Read(/*(unsigned char *)*/Buffer, BytesRead, ReadSize /*BLOCK_SIZE*/ /*Size*/);
-
-			//fmpd0->clearBufferRX();
 		
 		//if (BytesRead == ReadSize)
 			return (unsigned int)BytesRead; //1
@@ -210,9 +327,9 @@ unsigned int Core::Acq(unsigned char *Buffer)
 
 void Core::CheckClear(void)
 {
-	unsigned long	Size = 0;
+	DWORD		Size = 0;
 	unsigned char	t=0;
-	
+
 	fmpd0->clearBufferRX();
 	Size=fmpd0->GetSize();
 	
@@ -231,8 +348,8 @@ void Core::CheckClear(void)
 unsigned char Core::WriteReg(unsigned char addr, unsigned char data)
 {
 	unsigned char	temp = 0;
-	unsigned long	BytesRead = 0;
-	unsigned long	Size = 0;
+	DWORD		BytesRead = 0;
+	DWORD		Size = 0;
 	unsigned char	Buffer[1];
 	unsigned char	t=0;
 	
@@ -273,8 +390,8 @@ unsigned char Core::WriteReg(unsigned char addr, unsigned char data)
 unsigned char Core::ReadReg(unsigned char addr)
 {
 	unsigned char	temp = 0;
-	unsigned long	BytesRead = 0;
-	unsigned long	Size = 0;
+	DWORD		BytesRead = 0;
+	DWORD		Size = 0;
 	unsigned char	Buffer[1];
 	unsigned char	t=0;
 

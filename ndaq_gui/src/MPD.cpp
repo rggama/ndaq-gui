@@ -1,6 +1,13 @@
+#include "defines.h"
 #include "MPD.h"
-#include "ftd2xx.h"
-#include "ftd2xx.cpp"
+
+#ifndef LINUX
+#include "ftd2xx.windows.h"
+#else
+#include "ftd2xx.linux.h"
+#endif
+
+#include "ftd2xx.inc"
 
 // Construtor
 MPD::MPD(int num)

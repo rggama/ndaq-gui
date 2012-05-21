@@ -25,6 +25,7 @@ public:
 	int SetConnect(bool state);
 	void Initialize();
 	void SetChannels(unsigned char c_config);
+	void SetTrigger(bool mode, bool slope, signed short th);	
 	void SetRun(bool state);
 	bool GetRun() {return Run;}
 	void ToggleRun();

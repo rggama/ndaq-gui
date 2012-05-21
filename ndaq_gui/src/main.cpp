@@ -13,8 +13,12 @@
 
 #include "main.h"
 //#include <conio.h>	//for getch() in a test procedure below.
+//#include "f_MainFrame.h"
 
 //bool ThreadON1 = false;
+
+//MainFrame *MainF;
+
 
 Thread::Thread()
 {
@@ -23,6 +27,7 @@ Thread::Thread()
 	Threadstart();
 }
 
+
 Thread::~Thread()
 {
 	Threadstop();
@@ -30,8 +35,10 @@ Thread::~Thread()
 
 void Thread::Func1()
 {
+	
 	//printf("Is It!?\n");
-	if(MainF->Update()){} else gSystem->Sleep(1);
+	MainF->Update();
+	//if(MainF->Update()){} else gSystem->Sleep(1);
 }
 
 void Thread::Thread1(void* arg)
@@ -95,33 +102,9 @@ int main(int argc, char **argv) {
 	}
 
 	new Thread();
-
-	theApp.Run();
-
-	/*
-	signed char data[128];
-	signed char *dataptr = &data[0];
-	signed char *aptr;
-	signed char *bptr;
-
-	aptr = dataptr;
-
-	for (unsigned char i=0; i<128; i++)
-		*dataptr++ = i;
+	//MainF = new MainFrame(gClient->GetRoot(), 880, 380);
 	
-	bptr = dataptr;
-
-	printf("delta: %d\n", bptr-aptr);
-
-	//dataptr = &data[0];
-	//dataptr-=128;
-	dataptr-=(bptr-aptr);
-
-	for (unsigned char i=0; i<128; i++)
-		printf("data: %d\n", *dataptr++);
-
-	getch();
-	*/
+	theApp.Run();
 
 	return 0;
 }
