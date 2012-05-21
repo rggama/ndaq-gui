@@ -1,6 +1,8 @@
 /**/
 #define DEBUG			0
 
+//#define LINUX			1
+
 #define CONFIG_CHAN		0xC0
 
 #define	MAX_CHANNELS	8
@@ -33,8 +35,12 @@
 //#define B				-4.73032f
 
 //NDAQ-01-2010-ADC1 - 2 Vpp
-#define A				2.53037f
-#define B				-5.43545f
+//#define A				2.53037f
+//#define B				-5.43545f
+
+//NDAQ-20-2011-ADC1 - 2 Vpp
+#define A	2.59134f
+#define B	-4.08396f
 
 #define c16E6			16<<20
 #define c16E4			16<<12

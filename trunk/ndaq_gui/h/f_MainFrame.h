@@ -1,3 +1,6 @@
+#ifndef MAINFRAME_H
+#define MAINFRAME_H
+
 // header files required by the application.
 //#include <stdlib.h>
 //#include <stdio.h>
@@ -101,11 +104,14 @@ private:
 	TGComboBox *fComboTri;
 	//TGComboBox *fComboFrom;
 	TGNumberEntry *fNumTreshold;
-	TGPictureButton *fPButtonSlope;
-	TGTextButton *fButtonApply;
+	//TGPictureButton *fPButtonSlope;
+	TGTextButton *fPButtonSlope;
+	//TGTextButton *fButtonApply;
 
 	//Control Group (child of the Right group frame).
 	TGGroupFrame *fgroupCtrl;
+	TGNumberEntry *fCount;
+	TGNumberEntry *fTime;
 	TGTextButton *fButtonRunMPD1;
 	TGCheckButton *fScal;
 	TGCheckButton *fSave;
@@ -157,3 +163,4 @@ public:
 	ClassDef(MainFrame,0);
 };
 
+#endif
