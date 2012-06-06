@@ -20,10 +20,12 @@
 
 #include "c_Core.h"
 
-#define E	printf("WriteReg Error!\n")
-#define R	if (DEBUG) printf("Response 0x%0.2X\n", r)
+#define C				printf("WriteCore Error!\n"); _getch();
+#define E				printf("WriteReg Error!\n");
+#define R				if (DEBUG) printf("Response 0x%0.2X\n", r);
 
-
+#define TestWCore(a, d)	{if(!WriteCore(a, d)) {C}}
+#define TestWReg(a, d)	{if(!WriteReg(a, d)) {E}}
 
 Core::Core()
 {
@@ -58,13 +60,12 @@ void Core::Initialize()
 	fmpd0->SetFlowControl();
 
 	fmpd0->SetBlock(65536);
-	//fmpd0->SetBlock(4096);
+	//fmpd0->SetBlock(64);
 
 	fmpd0->SetLatency(16);
 
 	CheckClear();
 	WriteReg(0xAA, 0x55);		//Resets Vme FPGA
-	//Colocar como valor padrao no FPGA
 	WriteReg(0x80, 0x80);		//Grant we'll have command responses.
 	WriteCore(0xAA,0x55);		//Resets Core FPGA
 }
@@ -79,45 +80,49 @@ void Core::SetTrigger(bool mode, bool slope, signed short th)
 	unsigned char temp=0;
 
 	//if slope is falling...
-	if (slope == false)		
-		WriteCore(0x7B, 0x01);				//Internal Trigger Slope: 0 -> rising, 1 -> falling	
+	if (slope == false)
+	{
+		TestWCore(0x7B, 0x01);				//Internal Trigger Slope: 0 -> rising, 1 -> falling	
+	}
 	//if slope is rising...	
 	else
-		WriteCore(0x7B, 0x00);
-
+		TestWCore(0x7B, 0x00);
+	
 	//if slope is falling...
 	if (slope == false)
 	{	
 		printf("\nLow byte: 0x%02X - High byte: 0x%02X\n", (unsigned char) th, ((th >> 8) & 0x03));
-		WriteCore(0x79, (unsigned char) th);		//Th2: low byte
+		TestWCore(0x79, (unsigned char) th);		//Th2: low byte
 		temp = (th >> 8) & 0x03; 
-		WriteCore(0x7A, temp);				//Th2: high byte
+		TestWCore(0x7A, temp);						//Th2: high byte
 		//Hysteresis        
 		th = th+1;
-		WriteCore(0x77, (unsigned char) th);		//Th1: low byte
+		TestWCore(0x77, (unsigned char) th);		//Th1: low byte
 		temp = (th >> 8) & 0x03; 
-		WriteCore(0x78, temp);				//Th1: high byte
+		TestWCore(0x78, temp);						//Th1: high byte
 	}
 	//if slope is rising...
 	else
 	{
 		printf("\nLow byte: 0x%02X - High byte: 0x%02X\n", (unsigned char) th, ((th >> 8) & 0x03));
-		WriteCore(0x79, (unsigned char) th);		//Th2: low byte
+		TestWCore(0x79, (unsigned char) th);		//Th2: low byte
 		temp = (th >> 8) & 0x03; 
-		WriteCore(0x7A, temp);				//Th2: high byte
+		TestWCore(0x7A, temp);						//Th2: high byte
 		//Hysteresis        
 		th = th-1;
-		WriteCore(0x77, (unsigned char) th);		//Th1: low byte
+		TestWCore(0x77, (unsigned char) th);		//Th1: low byte
 		temp = (th >> 8) & 0x03; 
-		WriteCore(0x78, temp);				//Th1: high byte
+		TestWCore(0x78, temp);						//Th1: high byte
 	}
 	
 	//if trigger is internal...
 	if (mode == false)
-		WriteCore(0x91, 0x80);				//ACQ Register - Bit 7: 0 -> external trigger, 1 -> internal trigger
+	{
+		TestWCore(0x91, 0x80);						//ACQ Register - Bit 7: 0 -> external trigger, 1 -> internal trigger
+	}
 	//if trigger is external...	
 	else
-		WriteCore(0x91, 0x00);
+		TestWCore(0x91, 0x00);
 }	
 
 void Core::SetRun(bool state)
@@ -132,159 +137,53 @@ void Core::SetRun(bool state)
 	if(state){
 		WriteReg(0x80, 0x80);				//Grant we'll have command responses.
 
-		//WriteCore(0x7B, 0x00);			//Internal Trigger Slope: 0 -> rising, 1 -> falling
-		//WriteCore(0x77, 0x00);			//Th1: low
-		//WriteCore(0x78, 0x00);			//Th1: high
-		//WriteCore(0x79, 0x32);			//Th2: low
-		//WriteCore(0x7A, 0x00);			//Th2: high
-
-		//Sleep(50);
-		WriteCore(0x00, 0x00);				//
+		//TestWCore(0x00, 0x00);			//
 		
-		WriteCore(0x89, 0x01);				//ACQ Reset Assert
-		//Sleep(16);
-		WriteCore(0x89, 0x00);				//ACQ Reset Deassert
-
-		//Sleep(20);
-		//WriteCore(0x91, 0x00);			//ACQ Register - Bit 7: 0 -> external trigger, 1 -> internal trigger
+		TestWCore(0x89, 0x01);				//ACQ Reset Assert
+		Sleep(16);
+		TestWCore(0x89, 0x00);				//ACQ Reset Deassert
 		
-		WriteReg(0x80, 0x00);				//From here we won't have command responses anymore.
-		CheckClear();					//Ensure Receive Buffer is clear.
+		TestWCore(0x80, 0x01);				//DataBuilder Enable
+
+		TestWReg(0x80, 0x00);				//From here we won't have command responses anymore.
+		
+		//***CheckClear();						//Ensure Receive Buffer is clear.
 
 		WriteReg(0x82, 0x01);				//Readout Reset Assert
 		//Sleep(16);
 		WriteReg(0x82, 0x00);				//Readout Reset Deassert
+		//WriteReg(0x80, 0x01);				//Vme Readout Enable.
+		//WriteReg(0x81, lc_config);		//Vme Channel Selector.
+		WriteReg(0x81, 0x0F);
 		WriteReg(0x80, 0x01);				//Vme Readout Enable.
-		WriteReg(0x81, lc_config);			//Vme Channel Selector.
-		
+
 		Run = true;
 
 	//Stop
 	}else{
-		//WriteCore(0x87, 0x00);			//ADC Power-down
-		//WriteCore(0x91, 0x00);			//ACQ Disable
-		
-		Run = false;
-		
-		WriteReg(0x81, 0x00);				//Vme Channel Selector - Disable ALL Channels.
-		WriteReg(0x80, 0x00);				//Vme Readout Disable.
-
-		//Sleep(50);
-
 		CheckClear();						//Ensure Receive Buffer is clear.
-		//WriteReg(0xAA, 0x55);				//Resets Vme FPGA 
 		WriteReg(0x80, 0x80);				//Return grant to command responses.
+		Sleep(120);
+		//TestWCore(0x87, 0x00);			//ADC Power-down
+		//TestWCore(0x91, 0x00);			//ACQ Disable
+		TestWCore(0x80, 0x00);				//DataBuilder Disable
+				
+		TestWReg(0x81, 0x00);				//Vme Channel Selector - Disable ALL Channels.
+		TestWReg(0x80, 0x80);				//Vme Readout Disable.
+
+		//CheckClear();						//Ensure Receive Buffer is clear.
+		//TestWReg(0xAA, 0x55);				//Resets Vme FPGA 
+		//TestWReg(0x80, 0x80);				//Return grant to command responses.
 
 		//VERIFICAR!
 		//Sem isso, perde-se a sincronia com 8 canais habilitados
-		//WriteCore(0xAA,0x55);				//Resets Core FPGA
+		//TestWCore(0xAA,0x55);				//Resets Core FPGA
 
-		//Run = false; //if it really stopped.
-		
-	}	
-}
-
-/*
-void Core::SetRun(bool state)
-{
-	unsigned char b_btst = 0x01;
-	unsigned char n_btst = 0x01;
-	unsigned char adc_pwdn = 0x0F;
-
-	
-	
-	//Start
-	if(state){
-		WriteReg(0x80, 0x80);				//Grant we'll have command responses.
-		//Sleep(50);
-
-		WriteReg(0x82, 0x01);				//Readout Reset Assert
-		//Sleep(16);
-		WriteReg(0x82, 0x00);				//Readout Reset Deassert
-		
-		WriteCore(0x89, 0x01);				//ACQ Reset Assert
-		//Sleep(16);
-		WriteCore(0x89, 0x00);				//ACQ Reset Deassert
-
-		//Sleep(20);
-		WriteCore(0x91, 0x00);				//ACQ Register - Bit 7: 0 -> external trigger, 1 -> internal trigger
-
-		WriteReg(0x80, 0x00);				//From here we won't have command responses anymore.
-		CheckClear();						//Ensure Receive Buffer is clear.
-
-		WriteReg(0x80, 0x01);				//Vme Readout Enable.
-		WriteReg(0x81, lc_config);			//Vme Channel Selector.
-				
-		Run = true;
-
-	//Stop
-	}else{
-		//WriteCore(0x87, 0x00);			//ADC Power-down
-		//WriteCore(0x91, 0x00);			//ACQ Disable
-		
-		Run = false;
-		WriteReg(0x81, 0x00);				//Vme Channel Selector - Disable ALL Channels.
-		WriteReg(0x80, 0x00);				//Vme Readout Disable.
-
-		//Sleep(50);
-
-		CheckClear();						//Ensure Receive Buffer is clear.
-		//WriteReg(0xAA, 0x55);				//Resets Vme FPGA
-		WriteReg(0x80, 0x80);				//Return grant to command responses.
-		//WriteCore(0xAA,0x55);				//Resets Core FPGA
-
-		//*Run = false; //if it really stopped.
-	}	
-}
-*/
-/*
-void Core::SetRun(bool state)
-{
-	unsigned char b_btst = 0x01;
-	unsigned char n_btst = 0x01;
-	unsigned char adc_pwdn = 0x0F;
-
-	
-	
-	//Start
-	if(state){
-		WriteCore(0xAA, 0x55);
-		WriteReg(0xAA, 0x55);
-
-		for(unsigned char i=1;i<9;i++)
-		{
-			if ((lc_config & b_btst) == b_btst)
-			{
-				//0: enable, 1: disable.
-				adc_pwdn = adc_pwdn & ((unsigned char)~n_btst); //enabling.
-			}
-			b_btst = b_btst<<1; //sweeping 8 bits var.
-			if ((i%2) == 0) n_btst = n_btst<<1; //sweeping 4 bits var.
-		}
-
-		////fmpd0->Write(0x80, adc_pwdn);	//ADCs Power down
-		
-		fmpd0->clearBufferRX();			//Clear SOFTWARE RX Buffer
-
-		WriteCore(0x80,0x01);
-		WriteReg(0x80, 0x01);
-		//fmpd0->clearBufferRX();			//Clear SOFTWARE RX Buffer
-		Run = true;
-
-		 //if everything went well.
-	//Stop
-	}else{
-		////fmpd0->Write(0x81,0);			// Stop Readout FSM
-
-		////fmpd0->clearBufferRX();			//Clear SOFTWARE RX Buffer
-
-		////fmpd0->Write(0x80,0x0F);		//Power Down ALL ADCs
-		StopReadout();
-		WriteCore(0x80,0x00);
 		Run = false; //if it really stopped.
+		
 	}	
 }
-*/
+
 
 void Core::ToggleRun()
 {
@@ -306,7 +205,7 @@ unsigned int Core::Acq(unsigned char *Buffer)
 
 	Size=fmpd0->GetSize();
 	
-	if (DEBUG) printf(" - Buffer Size: %u\n", Size);
+	if (1/*DEBUG*/) printf(" - Buffer Size: %u\n", Size);
 
 	if(Size > BLOCK_SIZE-1){
 			//fmpd0->Write(0xAB, 0x55);	//Resets TX INTERFACE's Byte Counter
@@ -364,16 +263,17 @@ unsigned char Core::WriteReg(unsigned char addr, unsigned char data)
 	fmpd0->WriteB((temp | 0xA0));	//data ph1 - ls nibble
 	temp = (data >> 4);				//temp = ms nibble from addr.
 	fmpd0->WriteB((temp | 0x50));	//data ph2 - ms nibble
-
+	
+	
 	while((Size < 1) && (t < 20))	//~20ms of timeout;
 	{
 		Size=fmpd0->GetSize();
-		//if (1) printf("Buffer Size: %u - try: %u\r", Size, t);
 		t++;
 		Sleep(1);
 	}
 	
-	if(Size > 0)
+	//if(Size > 0)
+	if (Size == 1) //Size > 1 is not a command reponse. Maybe ACQ'ed data?
 	{
 			fmpd0->Read(Buffer, BytesRead, 1);
 			
@@ -428,7 +328,8 @@ unsigned char Core::WriteSSPI(unsigned char data)
 
 	//while busy
 	while (((ReadReg(0x71) & 0x01) == 0x01) && (t < 20)) t++;
-	if(!(WriteReg(0x70, data))) E;
+	//if(!(WriteReg(0x70, data))) E;
+	TestWReg(0x70, data);
 	if (t==20) printf("SPI busy test TIMED OUT!\n");
 	t=0;
 	//while no data
@@ -456,21 +357,16 @@ unsigned char Core::WriteCore(unsigned char addr, unsigned char data)
 	r = WriteSSPI(0xFF); R;				//getting response.
 	
 	if (r == 0xEB) return 1;
-
+	
 	return 0;
 }
+
 
 unsigned char Core::ReadCore(unsigned char addr)
 {
 	unsigned char	temp = 0;
 	unsigned char	r = 0;
 
-	//unsigned long	BytesRead = 0;
-	//unsigned long	Size = 0;
-	//unsigned char	Buffer[1];
-	//unsigned char	t=0;
-
-	//fmpd0->clearBufferRX();
 
 	r = WriteSSPI(0x2A); R;				//read cmd
 	temp = (addr & 0x0F);				//temp = ls nibble from addr.
