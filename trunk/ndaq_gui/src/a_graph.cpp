@@ -1,5 +1,5 @@
 #include "a_graph.h"
-
+#include <conio.h>
 /*
 //8 bits
 void T_intgraph(signed char *Buffer, Int_t *x, Int_t *y){
@@ -12,6 +12,7 @@ void T_intgraph(signed char *Buffer, Int_t *x, Int_t *y){
 */
 
 
+/*
 //10 bits - The _J_ function builds a sample from two bytes.
 void T_intgraph(signed char *Buffer, Int_t *x, Int_t *y, Int_t offset){
 	
@@ -28,6 +29,41 @@ void T_intgraph(signed char *Buffer, Int_t *x, Int_t *y, Int_t offset){
 
 		*y++ = temp+offset;
 		Buffer+=2;
+	}
+}
+*/
+
+void T_intgraph(signed char *Buffer, Int_t *x, Int_t *y, unsigned char c){
+	
+	//signed int temp = 0;
+	ADC_DATA		data;
+	signed short	temp = 0;
+	
+	for(UInt_t i=0;i<EVENT_SIZE;i++){
+		*x++ = i;
+		
+		//printf("0x%02X - 0x%02X\n", *(Buffer+1), *(Buffer+0));
+		//_getch();
+
+		data.lsb = (unsigned char)*(Buffer+0+c);
+		data.msb = (unsigned char)*(Buffer+1+c);
+
+		//printf("0x%04X\n", data.wdata);
+		//_getch();
+
+		temp = data.wdata<<6;
+
+		//printf("%d\n", temp);
+		//_getch();
+
+		//temp=_J_(Buffer);
+		temp=temp>>6;
+
+		//printf("%d\n", temp);
+		//_getch();
+
+		*y++ = temp;
+		Buffer+=4;
 	}
 }
 
