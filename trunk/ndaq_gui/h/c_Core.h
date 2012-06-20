@@ -40,7 +40,7 @@ public:
 	unsigned char WriteSSPI(unsigned char data);
 	unsigned char WriteCore(unsigned char addr, unsigned char data);
 	unsigned char ReadCore(unsigned char addr);
-
+	void Test();
 
 	//ClassDef(Core,0);
 };

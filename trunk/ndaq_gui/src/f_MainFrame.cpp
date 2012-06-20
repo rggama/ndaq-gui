@@ -31,14 +31,16 @@ TGComboBox *fComboFrom;
 //unsigned long int totalEvents=0;
 Long_t totalEvents=0;
 unsigned long cal_count=0;
-int t_zero=0;
+//int t_zero=0;
 UInt_t dcounter=0;
 UInt_t ldcounter=0;
 
 unsigned char graph_counter=1;
 bool running=false;
 bool saving=false;
+bool first_run=false;
 int start_time=0;
+
 
 MainFrame::MainFrame(const TGWindow *p, UInt_t w, UInt_t h) : TGMainFrame(p, w, h)
 {	
@@ -286,7 +288,7 @@ MainFrame::MainFrame(const TGWindow *p, UInt_t w, UInt_t h) : TGMainFrame(p, w, 
 	//Create Treshold NumerEntry
 	fgroupTrigg->AddFrame(new TGLabel(fgroupTrigg, new TGHotString("Threshold(mV):")));	
 	//fNumTreshold = new TGNumberEntry(0, value, digit width, id, numberformat
-	fNumTreshold = new TGNumberEntry(fgroupTrigg,10.5,4,-1,TGNumberFormat::kNESReal,
+	fNumTreshold = new TGNumberEntry(fgroupTrigg,500,4,-1,TGNumberFormat::kNESReal,
 						TGNumberFormat::kNEAAnyNumber,TGNumberFormat::kNELLimitMinMax,-750.0,750.0);
 	//fNumTreshold->SetIntNumber(10);
 	fNumTreshold->Resize(55,20);
@@ -436,6 +438,8 @@ MainFrame::MainFrame(const TGWindow *p, UInt_t w, UInt_t h) : TGMainFrame(p, w, 
 		//fButtonApply->SetEnabled(kFALSE);
 	 	fButtonRunMPD1->SetEnabled(kFALSE);
 	}
+
+	FILEDEBUG("Last Execution - %u.\n", r);
 }
 
 // Destructor
@@ -502,7 +506,8 @@ void MainFrame::SettingsUpdate()
 			sprintf(cstr, "From Ch%u", i+1);
 	 		fComboGraph->AddEntry(cstr, channel[i]);
 		}
-	fComboGraph->Select(1, kTRUE);
+	//fComboGraph->Select(1, kTRUE);
+	fComboGraph->Select(0, kTRUE); //Antes selecionaval grafico 'From Ch1', agora seleciona 'None'
 	fComboGraph->MapSubwindows();
 	fComboGraph->Layout();
 	
@@ -578,6 +583,7 @@ void MainFrame::FButtonRunMPD1()
 		core->ToggleRun();
 		fButtonRunMPD1->SetText("Run");
 		running=false;
+		saving=false;
 	}
 	//Start
 	//If 'not running', the only way is start it.
@@ -605,8 +611,9 @@ void MainFrame::FButtonRunMPD1()
 		//Toggle Running!
 		core->ToggleRun();
 		//printf("\nt_zero!\n");
-		t_zero = (int)time(NULL);
+		//t_zero = (int)time(NULL);
 		running = true;
+		first_run = true;
 	}
 	
 }
@@ -637,7 +644,7 @@ bool MainFrame::Update(){
 	//ThatŽs all, folks.
 
 	signed char Buffer[BUFFER];
-	signed char *ptr = &Buffer[0];
+	//signed char *ptr = &Buffer[0];
 
 	//signed char *Buffer;
 	unsigned int block_size=0;
@@ -652,232 +659,113 @@ bool MainFrame::Update(){
 
 	//float base = 0;
 	unsigned int residue=0;
-	int etime=0;
+	int itime=0;
 	int stime=0;
 
 	unsigned int i,j;
 
 	char ch[4];
 
-	TCOUNTER_DATA	counter;
-	unsigned int	timestamp;
+	unsigned int	header=0;
+	unsigned int	timestamp=0;
+	unsigned int	cntr=0;
+	double			ftime=0;
+
 
 	/********************************************************************************************/
 
-	if (core->GetRun() && running == true)
-	{
-		etime = ((int)time(NULL)-t_zero);
-		fNumTime->SetIntNumber(etime);
+	if (core->GetRun() && running == true) block_size = core->Acq((unsigned char *)Buffer);
+	
+	if ( block_size > BLOCK_SIZE-1 ) 
+	{	
+		GetDWORD(0, 1, (unsigned char*)Buffer, CopyData, &header);
+		
+		if (header == 0xAA550000) //2 primeiros bytes vieram zerados - Latencia das fifos?!?!?
+		{
+			printf("Header LATENCY!\n\n");
+			FILEDEBUG("Header LATENCY - %08X\n", header);
+			return true;
+		}
+
+		if (header != 0xAA55AA55)
+		{
+			printf("Header ERROR!\n\n");
+			FILEDEBUG("Header Error - %u!\n", header);
+		}
+
+		GetDWORD(4, 1, (unsigned char*)Buffer, CopyData, &timestamp);
+		itime = (int) timestamp*0.1;
+		fNumTime->SetIntNumber(itime);
+		//printf("itime: %u\n\n", itime);
+		
+		if (first_run == true)
+		{
+			first_run = false;
+			
+			if (itime != 0)
+				FILEDEBUG("NON ZERO - %u!\n", timestamp);
+		}
+
+		/********************************************************************************************/
 
 		//SAVE TIME CHECK
 		if((fScal->GetState() != kButtonUp) || (fSave->GetState() != kButtonUp) || (fTable->GetState() != kButtonUp)){
 			if(saving==false)
 			{
 				saving=true;
-				start_time = etime;
+				start_time = itime;
 			}
-			stime = etime-start_time;
-			//printf("sv: %u - e: %u - st: %u - z: %u\n", stime, etime, start_time, t_zero);
+			stime = itime-start_time;
+			//printf("sv: %u - it: %u - st: %u\n\n", stime, itime, start_time);
 		}else
 			saving=false;
 
+		//For 3 seconds save test:
+		if ((stime > 3) && (fTime->GetIntNumber() == 3) && (fTable->GetState() != kButtonUp))
+		{
+			FILEDEBUG("Timestamp Error - %u!\n", timestamp);
+		}
+
 		//Test Save Count Limit
-		if ((stime >= fTime->GetIntNumber()) && (fTime->GetIntNumber() > 0) && saving == true){
+		if ((stime >= fTime->GetIntNumber()) && (fTime->GetIntNumber() > 0) && (saving == true)){
 			start_time = 0;
+			saving=false;
 			printf("\ntime: %0.6u\n", stime);
 			FButtonRunMPD1();
-			Sleep(250);
+			while(core->GetRun() == true);
+			Sleep(500);
 			FButtonRunMPD1();
 		}
 
-	}
+		/********************************************************************************************/
 
-	/********************************************************************************************/
-
-	//if (core->GetRun()) core->TestCoreRW();
-	//if (core->GetRun()) core->Loopback();
-	if (core->GetRun() && running == true) block_size = core->Acq((unsigned char *)Buffer);
-	
-	if ( block_size > BLOCK_SIZE-1 ) {
 		
-		printf(" - Read Size: %u\n\n", block_size);
+		//printf(" - Read Size: %u\n\n", block_size);
 		//_getch();
-
-		
-		//Timestamp Channel 1 & 2
-		counter.b0 = (unsigned char)*(ptr+0+0);
-		counter.b1 = (unsigned char)*(ptr+0+1);
-		counter.b2 = (unsigned char)*(ptr+0+2);
-		counter.b3 = (unsigned char)*(ptr+0+3);
-
-		printf("Timestamp Ch1&2:%u\n", timestamp = counter.wdata);
-
-		//Counter Channel 1
-		counter.b0 = (unsigned char)*(ptr+4+0);
-		counter.b1 = (unsigned char)*(ptr+4+1);
-		counter.b2 = (unsigned char)*(ptr+4+2);
-		counter.b3 = (unsigned char)*(ptr+4+3);
-		
-		if (timestamp > 0)
-			printf("Counter Ch1:%u - Frequency: %08u\n", counter.wdata, (counter.wdata/timestamp)*10);
+		/*
+		for (unsigned char i=0; i<63; i+=16)
+		{
+			//Timestamp
+			GetDWORD(i+4, 1, (unsigned char*)Buffer, CopyData, &timestamp);
+			printf("Timestamp ChA&B:%u\n", timestamp);
 			
-		//Counter Channel 2
-		counter.b0 = (unsigned char)*(ptr+8+0);
-		counter.b1 = (unsigned char)*(ptr+8+1);
-		counter.b2 = (unsigned char)*(ptr+8+2);
-		counter.b3 = (unsigned char)*(ptr+8+3);
-
-		if (timestamp > 0)
-			printf("Counter Ch2:%u - Frequency: %08u\n", counter.wdata, (counter.wdata/timestamp)*10);
-
-		//Timestamp Channel 3 & 4
-		counter.b0 = (unsigned char)*(ptr+12+0);
-		counter.b1 = (unsigned char)*(ptr+12+1);
-		counter.b2 = (unsigned char)*(ptr+12+2);
-		counter.b3 = (unsigned char)*(ptr+12+3);
-
-		printf("Timestamp Ch3&4:%u\n", timestamp = counter.wdata);
-
-		//Counter Channel 3
-		counter.b0 = (unsigned char)*(ptr+16+0);
-		counter.b1 = (unsigned char)*(ptr+16+1);
-		counter.b2 = (unsigned char)*(ptr+16+2);
-		counter.b3 = (unsigned char)*(ptr+16+3);
-		
-		if (timestamp > 0)
-			printf("Counter Ch3:%u - Frequency: %08u\n", counter.wdata, (counter.wdata/timestamp)*10);
-
-		//Counter Channel 4
-		counter.b0 = (unsigned char)*(ptr+20+0);
-		counter.b1 = (unsigned char)*(ptr+20+1);
-		counter.b2 = (unsigned char)*(ptr+20+2);
-		counter.b3 = (unsigned char)*(ptr+20+3);
-
-		if (timestamp > 0)
-			printf("Counter Ch4:%u - Frequency: %08u\n", counter.wdata, (counter.wdata/timestamp)*10);
-
-		//Timestamp Channel 5 & 6
-		counter.b0 = (unsigned char)*(ptr+24+0);
-		counter.b1 = (unsigned char)*(ptr+24+1);
-		counter.b2 = (unsigned char)*(ptr+24+2);
-		counter.b3 = (unsigned char)*(ptr+24+3);
-
-		printf("Timestamp Ch5&6:%u\n", timestamp = counter.wdata);
-
-		//Counter Channel 5
-		counter.b0 = (unsigned char)*(ptr+28+0);
-		counter.b1 = (unsigned char)*(ptr+28+1);
-		counter.b2 = (unsigned char)*(ptr+28+2);
-		counter.b3 = (unsigned char)*(ptr+28+3);
-		
-		if (timestamp > 0)
-			printf("Counter Ch5:%u - Frequency: %08u\n", counter.wdata, (counter.wdata/timestamp)*10);
-
-		//Counter Channel 6
-		counter.b0 = (unsigned char)*(ptr+32+0);
-		counter.b1 = (unsigned char)*(ptr+32+1);
-		counter.b2 = (unsigned char)*(ptr+32+2);
-		counter.b3 = (unsigned char)*(ptr+32+3);
-
-		if (timestamp > 0)
-			printf("Counter Ch6:%u - Frequency: %08u\n", counter.wdata, (counter.wdata/timestamp)*10);
-
-		//Timestamp Channel 7 & 8
-		counter.b0 = (unsigned char)*(ptr+36+0);
-		counter.b1 = (unsigned char)*(ptr+36+1);
-		counter.b2 = (unsigned char)*(ptr+36+2);
-		counter.b3 = (unsigned char)*(ptr+36+3);
-
-		printf("Timestamp Ch7&8:%u\n", timestamp = counter.wdata);
-
-		//Counter Channel 7
-		counter.b0 = (unsigned char)*(ptr+40+0);
-		counter.b1 = (unsigned char)*(ptr+40+1);
-		counter.b2 = (unsigned char)*(ptr+40+2);
-		counter.b3 = (unsigned char)*(ptr+40+3);
-		
-		if (timestamp > 0)
-			printf("Counter Ch7:%u - Frequency: %08u\n", counter.wdata, (counter.wdata/timestamp)*10);
-
-		//Counter Channel 8
-		counter.b0 = (unsigned char)*(ptr+44+0);
-		counter.b1 = (unsigned char)*(ptr+44+1);
-		counter.b2 = (unsigned char)*(ptr+44+2);
-		counter.b3 = (unsigned char)*(ptr+44+3);
-
-		if (timestamp > 0)
-			printf("Counter Ch8:%u - Frequency: %08u\n", counter.wdata, (counter.wdata/timestamp)*10);
-
-		printf("*******************************\n");
-		printf("*******************************\n");
-
-		//_getch();
-		
-		/*	
-		//Block Index - Increments in a FIFO block size basis: 512
-		for (unsigned int block_i=0; block_i<block_size; block_i+=(12*4))
-		{	
-			//FIFO 1
-			for (unsigned int data_i=0; data_i<12; data_i+=4)
-			{
-				printf(
-					"%02X\t%02X\t%02X\t%02X\n", 
-					(unsigned char)*(ptr+0),
-					(unsigned char)*(ptr+1),
-					(unsigned char)*(ptr+2),
-					(unsigned char)*(ptr+3)
-				);
-				ptr+=4;
-			}
-			printf("*** FIFO (1) END\n\n");
-			//_getch();
-			//FIFO 2
-			for (unsigned int data_i=0; data_i<12; data_i+=4)
-			{
-				printf(
-					"%02X\t%02X\t%02X\t%02X\n", 
-					(unsigned char)*(ptr+0),
-					(unsigned char)*(ptr+1),
-					(unsigned char)*(ptr+2),
-					(unsigned char)*(ptr+3)
-				);
-				ptr+=4;
-			}
-			printf("*** FIFO (2) END\n\n");
-			//_getch();
-			//FIFO 3
-			for (unsigned int data_i=0; data_i<12; data_i+=4)
-			{
-				printf(
-					"%02X\t%02X\t%02X\t%02X\n", 
-					(unsigned char)*(ptr+0),
-					(unsigned char)*(ptr+1),
-					(unsigned char)*(ptr+2),
-					(unsigned char)*(ptr+3)
-				);
-				ptr+=4;
-			}
-			printf("*** FIFO (3) END\n\n");
-			//_getch();
-			//FIFO 4
-			for (unsigned int data_i=0; data_i<12; data_i+=4)
-			{
-				printf(
-					"%02X\t%02X\t%02X\t%02X\n", 
-					(unsigned char)*(ptr+0),
-					(unsigned char)*(ptr+1),
-					(unsigned char)*(ptr+2),
-					(unsigned char)*(ptr+3)
-				);
-				ptr+=4;
-			}
-			
-			printf("*** FIFO (4) END\n\n");
-			//_getch();
-			
-			//ptr+=(512*3);
+			//Counter A
+			GetDWORD(i+8, 1, (unsigned char*)Buffer, CopyData, &cntr);
+			if (timestamp > 0)
+				printf("Counter ChA:%u - Frequency: %08u\n", cntr, (cntr/timestamp)*10);
+			//Counter B
+			GetDWORD(i+12, 1, (unsigned char*)Buffer, CopyData, &cntr);
+			if (timestamp > 0)
+				printf("Counter ChB:%u - Frequency: %08u\n", cntr, (cntr/timestamp)*10);
 		}
+
+		printf("*******************************\n");
+		printf("*******************************\n");
 		*/
+		//_getch();
+		
+
+		/****************************************************************************************/
 
 		event_count = block_size/(EVENT_SIZE*_step_);
 
@@ -885,33 +773,25 @@ bool MainFrame::Update(){
 		
 		fNumEvents->SetIntNumber(totalEvents);
 
-		if (etime > 0)
-			fNumRxRate->SetNumber((Double_t) (((totalEvents*(EVENT_SIZE*_step_))/etime)/1024) );
+		if (itime > 0)
+			fNumRxRate->SetNumber((Double_t) (((totalEvents*(EVENT_SIZE*_step_))/itime)/1024) );
 
 		//fNumCounter->SetIntNumber(dcounter);
 
 		if(fComboGraph->GetSelected() > 0){
-			/*
-			for (unsigned char index=0; index<128; index++)
-			{
-				printf("%u\n", (unsigned char)Buffer[index]);
-				if ((index > 0) && (((unsigned char)Buffer[index]) != 0))
-					if ( ((unsigned char)Buffer[index]) != ((unsigned char)Buffer[index-1]+1) )
-					_getch();
-			}*/
-			
+	
 			if (1/*setts->GetGraphsOpen() == false*/){
 
 				switch(fComboGraph->GetSelected()){
 				//posicao
 					case 1: T_intgraph(Buffer+0, x, y, 0); break;
 					case 2: T_intgraph(Buffer+0, x, y, 2); break;
-					case 3: T_intgraph(Buffer+520, x, y, 0); break;
-					case 4: T_intgraph(Buffer+520, x, y, 2); break;
-					case 5: T_intgraph(Buffer+1040, x, y, 0); break;
-					case 6: T_intgraph(Buffer+1040, x, y, 2); break;
-					case 7: T_intgraph(Buffer+1560, x, y, 0); break;
-					case 8: T_intgraph(Buffer+1560, x, y, 2); break;
+					case 3: T_intgraph(Buffer+512, x, y, 0); break;
+					case 4: T_intgraph(Buffer+512, x, y, 2); break;
+					case 5: T_intgraph(Buffer+1024, x, y, 0); break;
+					case 6: T_intgraph(Buffer+1024, x, y, 2); break;
+					case 7: T_intgraph(Buffer+1536, x, y, 0); break;
+					case 8: T_intgraph(Buffer+1536, x, y, 2); break;
 				}
 								
 				//Initialize graph1
@@ -1015,15 +895,17 @@ bool MainFrame::Update(){
 
 		//SAVE WAVE
 		if(fSave->GetState() != kButtonUp){
-			SaveWave(namevector, setts->GetChanTotal(), block_size, Buffer+1);
+			//SaveWave(namevector, setts->GetChanTotal(), block_size, Buffer+1);
+			printf("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaah!\n");
+			core->Test();
 		}
 
 		//SAVE TABLE
 		if(fTable->GetState() != kButtonUp){
-			if (fbslope == false)			
+			/*if (fbslope == false)			
 				cal_count+= SaveNTable(namevector, setts->GetChanTotal(), block_size, Buffer+1);
 			else
-				cal_count+= SavePTable(namevector, setts->GetChanTotal(), block_size, Buffer+1);
+				cal_count+= SavePTable(namevector, setts->GetChanTotal(), block_size, Buffer+1);*/
 		}
 
 		//Test Save Count Limit
