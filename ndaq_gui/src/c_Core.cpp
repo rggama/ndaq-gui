@@ -20,12 +20,12 @@
 
 #include "c_Core.h"
 
-#define C				printf("WriteCore Error!\n"); _getch();
-#define E				printf("WriteReg Error!\n");
-#define R				if (DEBUG) printf("Response 0x%0.2X\n", r);
+#define C(n)			{printf("WriteCore Error at 0x%02X!\n", n); FILEDEBUG("WriteCore Error - 0x%02X!\n", n);}
+#define E(n)			{printf("WriteReg Error at 0x%02X!\n", n); FILEDEBUG("WriteReg Error - 0x%02X!\n", n);} 
+#define R				if (DEBUG) printf("Response 0x%02X\n", r);
 
-#define TestWCore(a, d)	{if(!WriteCore(a, d)) {C}}
-#define TestWReg(a, d)	{if(!WriteReg(a, d)) {E}}
+#define TestWCore(a, d)	{if(!WriteCore(a, d)) {C(a)}}
+#define TestWReg(a, d)	{if(!WriteReg(a, d)) {E(a)}}
 
 Core::Core()
 {
@@ -59,8 +59,8 @@ void Core::Initialize()
 {
 	fmpd0->SetFlowControl();
 
-	fmpd0->SetBlock(65536);
-	//fmpd0->SetBlock(64);
+	//fmpd0->SetBlock(65536);
+	fmpd0->SetBlock(64);
 
 	fmpd0->SetLatency(16);
 
@@ -137,53 +137,68 @@ void Core::SetRun(bool state)
 	if(state){
 		WriteReg(0x80, 0x80);				//Grant we'll have command responses.
 
-		//TestWCore(0x00, 0x00);			//
-		
-		TestWCore(0x89, 0x01);				//ACQ Reset Assert
-		Sleep(16);
-		TestWCore(0x89, 0x00);				//ACQ Reset Deassert
-		
-		TestWCore(0x80, 0x01);				//DataBuilder Enable
+		//TestWCore(0x87, 0x00);			//ADC Power-up - Already Powered.
 
-		TestWReg(0x80, 0x00);				//From here we won't have command responses anymore.
-		
-		//***CheckClear();						//Ensure Receive Buffer is clear.
+		TestWReg(0x81, 0x00);				//Vme DataBuilder config - Disable ALL Slots.
 
-		WriteReg(0x82, 0x01);				//Readout Reset Assert
-		//Sleep(16);
-		WriteReg(0x82, 0x00);				//Readout Reset Deassert
-		//WriteReg(0x80, 0x01);				//Vme Readout Enable.
-		//WriteReg(0x81, lc_config);		//Vme Channel Selector.
-		WriteReg(0x81, 0x0F);
-		WriteReg(0x80, 0x01);				//Vme Readout Enable.
+		TestWCore(0x91, 0x00);				//Disable all enables.
+
+		TestWCore(0x81, 0x7F);				//127(+1) samples per trigger (config).
+		
+		TestWCore(0x89, 0x01);				//ACQ Reset Assert.
+		Sleep(32);
+		TestWCore(0x89, 0x00);				//ACQ Reset Deassert.
+		
+		Sleep(32);
+
+		TestWCore(0x91, 0x1F);				//Enables desired enables.
+
+		TestWCore(0x80, 0x66);				//DataBuilder Configuration.
+		
+		Sleep(32);
+
+		TestWCore(0x80, 0x67);				//DataBuilder Enable.
+
+		/********************/
+
+		TestWReg(0x83, 0x03);				//Vme DataBuilder Block Size in WORDS less one (config).
+
+		WriteReg(0x80, 0x00);				//From here we won't have command responses anymore.
+		
+		CheckClear();						//Ensure Receive Buffer is clear.
+
+		WriteReg(0x82, 0x01);				//Readout Reset Assert.
+		Sleep(32);
+		WriteReg(0x82, 0x00);				//Readout Reset Deassert.
+
+
+		WriteReg(0x81, 0x0F);				//Vme DataBuilder config.
+		Sleep(32);
+		WriteReg(0x80, 0x01);				//Vme Readout Enable (DataBuilder enable).
 
 		Run = true;
 
 	//Stop
 	}else{
-		CheckClear();						//Ensure Receive Buffer is clear.
 		WriteReg(0x80, 0x80);				//Return grant to command responses.
-		Sleep(120);
-		//TestWCore(0x87, 0x00);			//ADC Power-down
-		//TestWCore(0x91, 0x00);			//ACQ Disable
-		TestWCore(0x80, 0x00);				//DataBuilder Disable
-				
-		TestWReg(0x81, 0x00);				//Vme Channel Selector - Disable ALL Channels.
-		TestWReg(0x80, 0x80);				//Vme Readout Disable.
-
-		//CheckClear();						//Ensure Receive Buffer is clear.
-		//TestWReg(0xAA, 0x55);				//Resets Vme FPGA 
-		//TestWReg(0x80, 0x80);				//Return grant to command responses.
-
-		//VERIFICAR!
-		//Sem isso, perde-se a sincronia com 8 canais habilitados
-		//TestWCore(0xAA,0x55);				//Resets Core FPGA
-
-		Run = false; //if it really stopped.
+		Sleep(360);
+		CheckClear();						//Ensure Receive Buffer is clear.
 		
+		TestWCore(0x91, 0x00);				//Disable all enables.
+
+		//TestWCore(0x87, 0x00);			//ADC Power-down.
+				
+		TestWReg(0x81, 0x00);				//Vme DataBuilder config - Disable ALL Slots.
+		//TestWReg(0x80, 0x80);				//Vme Readout Disable (DataBuilder disable) - Already issued!
+
+		Run = false;						//if it really stopped.		
 	}	
 }
 
+void Core::Test()
+{
+	//
+}
 
 void Core::ToggleRun()
 {
@@ -205,7 +220,7 @@ unsigned int Core::Acq(unsigned char *Buffer)
 
 	Size=fmpd0->GetSize();
 	
-	if (1/*DEBUG*/) printf(" - Buffer Size: %u\n", Size);
+	if (DEBUG) printf(" - Buffer Size: %u\n", Size);
 
 	if(Size > BLOCK_SIZE-1){
 			//fmpd0->Write(0xAB, 0x55);	//Resets TX INTERFACE's Byte Counter
@@ -240,6 +255,9 @@ void Core::CheckClear(void)
 		t++;
 		Sleep(1);
 	}
+	
+	if (Size > 0) FILEDEBUG("Check Clear Error - %u!\n", Size);
+
 	printf("First Size: %u\n", Size);
 }
 
