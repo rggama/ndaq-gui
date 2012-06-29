@@ -117,7 +117,7 @@ void ReadFtd(int i, unsigned char *data, DWORD &dwBytesRead, DWORD dwRxSize)
 int clearRX(int i)
 {	
 	FT_STATUS ftStatus = FT_Purge(ftHandle[i],FT_PURGE_RX);
-	if (ftStatus != FT_OK);  
+	if (ftStatus != FT_OK)  
 		return 0;
 	
 	return 1;
@@ -126,7 +126,7 @@ int clearRX(int i)
 int SetLatencyFtd(int i, unsigned char latency)
 {
 	FT_STATUS ftStatus = FT_SetLatencyTimer(ftHandle[i], latency);
-	if (ftStatus != FT_OK);  
+	if (ftStatus != FT_OK)  
 		return 0;
 
 	return 1;
@@ -135,7 +135,7 @@ int SetLatencyFtd(int i, unsigned char latency)
 int SetBlockFtd(int i,unsigned int block)
 {
 	FT_STATUS ftStatus = FT_SetUSBParameters(ftHandle[i], block, 0);
-	if (ftStatus != FT_OK);  
+	if (ftStatus != FT_OK)  
 		return 0;
 
 	return 1;
@@ -144,7 +144,7 @@ int SetBlockFtd(int i,unsigned int block)
 int SetFlowControlFtd(int i, USHORT FlowControl)
 {
 	FT_STATUS ftStatus = FT_SetFlowControl(ftHandle[i], FlowControl, 0, 0);
-	if (ftStatus != FT_OK);  
+	if (ftStatus != FT_OK)  
 		return 0;
 
 	return 1;
@@ -155,7 +155,7 @@ int GetNDevices()
 	DWORD iNumDevs = 0;
 	
 	FT_STATUS ftStatus = FT_CreateDeviceInfoList(&iNumDevs);
-	if (ftStatus != FT_OK);  
+	if (ftStatus != FT_OK)  
 		return 0;
 
 	return (int)iNumDevs;

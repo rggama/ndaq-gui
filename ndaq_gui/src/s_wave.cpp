@@ -1,16 +1,11 @@
 #include "s_wave.h"
 #include "defines.h"
+#include "a_graph.h"
+#include "calibration.h"
 #include "string.h"
-//for (/* TRIGGERS - EVENTS */)
+#include <conio.h>
 
-//for (/* BUFFER */)
-//fprintf(
-
-
-//let's code ;D
-
-//passo = EVENT_SIZE * TOTAL_CHANNELS
-//start = (mapchannels-1) * EVENT_SIZE
+FILE	*file;
 
 /**************************************************************************************************************************/
 
@@ -43,44 +38,79 @@ signed int GetSample(signed char *buffer, signed char *addr)
 	return temp>>6;
 }
 
+//*r is a pointer to a SIGNED SHORT.
+void SaveRawData(unsigned short data, unsigned short offset, const void *r)
+{
+	signed short temp = 0;
+	//const signed short *rptr = (const signed short *) r;
+
+	temp = (signed short)(data<<6);
+	
+	//printf("sample: %u\n", offset);
+	fprintf(file, "%d\t", temp>>6);
+}
+
 /**************************************************************************************************************************/
 
 //cada linha é um evento ou waveform
 //colunas = EVENT_SIZE
 //linhas = quantidade de eventos ou waveforms
-void SaveWave(char *namevector, unsigned char t_channels, unsigned int block_size, signed char *buffer){
+void SaveWave(unsigned char t_blocks, unsigned char config, char *namevector, unsigned short block_size, unsigned char *buffer){
 	
-	FILE *file;
+	unsigned char btst = 0x01;
+	//signed short temp[ADC_SIZE];
 	
-	//if (t_channels == 0) return;
+	//Block counter - Each block contains 2 ADC channels. But we'll have to check if both are enabled 
+	//for saving.
+	for(unsigned char c=0;c<t_blocks;c++)
+	{
+		//Even indexed ADC channel check.
+		if ((config & btst) == btst)
+		{
+			file = fopen(namevector, "a+t");
 
-	for(unsigned char c=0;c<t_channels;c++){
-	
-		//printf("\n--start %s\n\n", namevector);
-		file = fopen(namevector, "a+t");
-
-	//if ((config & btst) == btst)
-		//line
-		for(unsigned int i=(c*(EVENT_SIZE*_step_));i<block_size;i+=((EVENT_SIZE*_step_)*t_channels)){
-			//column
-			for(unsigned int j=i;j<((EVENT_SIZE*_step_)+i);j+=_step_){
-			
-				//Save all columns for that line
-				//printf("%u\t", j);
-				fprintf(file, "%d\t", GetSample(buffer, &buffer[j]));
+			//Save ALL samples from even indexed ADC channels (contained into a single FIFO block)...
+			for(unsigned short block_index=(c*FIFO_BS); block_index<(block_size/SLOT_SIZE); block_index+=(FIFO_BS*t_blocks))
+			{
+				//Even ADC indexes (0, 2, 4, 6 which corresponds to channels 1, 3, 5, 7) are on LSWords.
+				//The function below will retrieve ADC_SIZE samples from the memory buffer. These samples 
+				//will be written as a line on a ASCII file.
+				GetLSWORD(ADC_OFFSET+block_index, ADC_SIZE, buffer, SaveRawData, NULL);
+				fprintf(file, "\n");
 			}
-			//printf("\n");
-			fprintf(file, "\n");
+
+			fclose(file);
+			//next filename.
+			namevector+=(strlen(namevector)+1);
 		}
-		//printf("\n--end %s\n\n", namevector);
-		fclose(file);
-		namevector+=(strlen(namevector)+1);
+		btst = btst<<1;
+		
+		//Odd indexed ADC channel check.
+		if ((config & btst) == btst)
+		{
+			file = fopen(namevector, "a+t");
+			//Save ALL samples from the save enabled ADC channels (contained into a single FIFO block)...
+			for(unsigned short block_index=(c*FIFO_BS); block_index<(block_size/SLOT_SIZE); block_index+=(FIFO_BS*t_blocks))
+			{
+				//Odd ADC indexes (1, 3, 5, 7 which corresponds to channels 2, 4, 6, 8) are on MSWords.
+				//The function below will retrieve ADC_SIZE samples from the memory buffer. These samples 
+				//will be written as a line on a ASCII file.
+				GetMSWORD(ADC_OFFSET+block_index, ADC_SIZE, buffer, SaveRawData, NULL);
+				fprintf(file, "\n");
+			}
+			fclose(file);
+			//next filename.
+			namevector+=(strlen(namevector)+1);
+		}
+		btst = btst<<1;
+
+		//printf("block index %u - channel: %u\n", block_index, c);
+		//_getch();
 	}
 }
 
 unsigned int SaveCal(char *namevector, unsigned char t_channels, unsigned int block_size, signed char *buffer){
 	
-	FILE *file;
 	unsigned int counter = 0;
 
 	for(unsigned char c=0;c<t_channels;c++){
@@ -104,7 +134,6 @@ unsigned int SaveCal(char *namevector, unsigned char t_channels, unsigned int bl
 
 unsigned int SavePTable(char *namevector, unsigned char t_channels, unsigned int block_size, signed char *buffer){
 	
-	FILE *file;
 	unsigned int counter = 0;
 	double base = 0;
 	double peak = 0;
@@ -135,7 +164,6 @@ unsigned int SavePTable(char *namevector, unsigned char t_channels, unsigned int
 
 unsigned int SaveNTable(char *namevector, unsigned char t_channels, unsigned int block_size, signed char *buffer){
 	
-	FILE *file;
 	unsigned int counter = 0;
 	double base = 0;
 	double peak = 0;

@@ -2,9 +2,12 @@
 
 void SetFilename(unsigned char config, char *namevector, char *filename, char *suffix);
 
+//*r is a pointer to a SIGNED SHORT.
+void SaveRawData(unsigned short data, unsigned short offset, const void *r);
+//
 signed int GetSample(signed char *buffer, signed char *addr);
 
-void SaveWave(char *namevector, unsigned char t_channels, unsigned int block_size, signed char *buffer);
+void SaveWave(unsigned char t_blocks, unsigned char config, char *namevector, unsigned short block_size, unsigned char *buffer);
 unsigned int SaveCal(char *namevector, unsigned char t_channels, unsigned int block_size, signed char *buffer);
 unsigned int SavePTable(char *namevector, unsigned char t_channels, unsigned int block_size, signed char *buffer);
 unsigned int SaveNTable(char *namevector, unsigned char t_channels, unsigned int block_size, signed char *buffer);

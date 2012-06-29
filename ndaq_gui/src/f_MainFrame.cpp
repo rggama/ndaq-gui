@@ -38,7 +38,9 @@ UInt_t ldcounter=0;
 unsigned char graph_counter=1;
 bool running=false;
 bool saving=false;
-bool first_run=false;
+bool zero_seek=false;
+unsigned int zscounter=0;
+unsigned long bscounter=0;
 int start_time=0;
 
 
@@ -361,11 +363,6 @@ MainFrame::MainFrame(const TGWindow *p, UInt_t w, UInt_t h) : TGMainFrame(p, w, 
 
 	//Save Table
 	fgroupCtrl->AddFrame(new TGLabel(fgroupCtrl, new TGHotString("Save Table:")));
-
-
-
-
-
 	fTable = new TGCheckButton(fgroupCtrl);
 	fTable->SetState(kButtonUp);
 	fTable->Connect("Clicked()", "MainFrame", this, "HandleCheckBoxes()");
@@ -439,7 +436,7 @@ MainFrame::MainFrame(const TGWindow *p, UInt_t w, UInt_t h) : TGMainFrame(p, w, 
 	 	fButtonRunMPD1->SetEnabled(kFALSE);
 	}
 
-	FILEDEBUG("Last Execution - %u.\n", r);
+	FILEDEBUG("\nLast Execution: %u. **************************************************\n", r, 0);
 }
 
 // Destructor
@@ -491,6 +488,12 @@ void MainFrame::SettingsUpdate()
 	char bstr[160]; //8*20
 	char *bptr = &bstr[0];
 
+	/**********************************************/
+	//Forcing Full Channel Enable for test purposes!
+	setts->SetChanConfig(0xFF);
+	setts->SetChanTotal(8);
+	/**********************************************/
+
 	printf("Channel Config: %u\n", setts->GetChanConfig());
 
 	//Mapping Channels
@@ -507,7 +510,7 @@ void MainFrame::SettingsUpdate()
 	 		fComboGraph->AddEntry(cstr, channel[i]);
 		}
 	//fComboGraph->Select(1, kTRUE);
-	fComboGraph->Select(0, kTRUE); //Antes selecionaval grafico 'From Ch1', agora seleciona 'None'
+	fComboGraph->Select(0, kTRUE); //Antes selecionava grafico 'From Ch1', agora seleciona 'None'
 	fComboGraph->MapSubwindows();
 	fComboGraph->Layout();
 	
@@ -588,6 +591,9 @@ void MainFrame::FButtonRunMPD1()
 	//Start
 	//If 'not running', the only way is start it.
 	else{
+		
+		printf("Start!\n");
+
 		SetFilename(setts->GetChanConfig(), namevector, filename, suffix);
 		totalEvents=0;
 		cal_count=0;
@@ -613,7 +619,7 @@ void MainFrame::FButtonRunMPD1()
 		//printf("\nt_zero!\n");
 		//t_zero = (int)time(NULL);
 		running = true;
-		first_run = true;
+		zero_seek = true;
 	}
 	
 }
@@ -625,86 +631,61 @@ void MainFrame::HandleCheckBoxes()
 
 bool MainFrame::Update(){
 	
-	//H -> 8 Most signifcant bits, INCLUDING SIGNAL BIT (The MSb)
-	//L -> 4 Least signifcant bits, padded with FOUR ZEROS.
-	//
-	//Constructing a 12 bits UNSIGNED number:
-	//
-	//N(signed int) = H(signed char)*2^4+L(signed char)
-	//
-	//Converting the 12 bits UNSIGNED number to a SIGNED one:
-	//
-	//N(signed int) = N << 4
-	//
-	//By shifting left N four times, we are moving the signal bit to the right place on a signed int type.
-	//Now, N is signed but 16 times greater. So, letŽs move it back to its original magnitude:
-	//
-	//N(signed int) = N >> 4
-	//
-	//ThatŽs all, folks.
+	unsigned char Buffer[BUFFER];
 
-	signed char Buffer[BUFFER];
-	//signed char *ptr = &Buffer[0];
-
-	//signed char *Buffer;
-	unsigned int block_size=0;
-	unsigned int event_count=0;
-
-	//float x[EVENT_SIZE]/*, yCAL[EVENT_SIZE]*/;
-	Int_t x[EVENT_SIZE];
-	Int_t y[EVENT_SIZE];
-
-	Int_t x1[EVENT_SIZE];
-	Int_t y1[EVENT_SIZE];
-
-	//float base = 0;
-	unsigned int residue=0;
-	int itime=0;
-	int stime=0;
-
-	unsigned int i,j;
-
-	char ch[4];
+	unsigned short block_size=0;
+	unsigned short event_count=0;
 
 	unsigned int	header=0;
 	unsigned int	timestamp=0;
 	unsigned int	cntr=0;
 	double			ftime=0;
 
+	signed int x[EVENT_SIZE];
+	signed int y[EVENT_SIZE];
+
+	unsigned int residue=0;
+	int itime=0;
+	int stime=0;
 
 	/********************************************************************************************/
 
-	if (core->GetRun() && running == true) block_size = core->Acq((unsigned char *)Buffer);
+	if (core->GetRun() && running == true) block_size = core->Acq(Buffer);
 	
 	if ( block_size > BLOCK_SIZE-1 ) 
 	{	
-		GetDWORD(0, 1, (unsigned char*)Buffer, CopyData, &header);
-		
-		if (header == 0xAA550000) //2 primeiros bytes vieram zerados - Latencia das fifos?!?!?
-		{
-			printf("Header LATENCY!\n\n");
-			FILEDEBUG("Header LATENCY - %08X\n", header);
-			return true;
-		}
+		if (DEBUG) printf(" - Read Size: %u\n\n", block_size);
+
+		GetDWORD(0, 1, Buffer, CopyData, &header);
 
 		if (header != 0xAA55AA55)
 		{
 			printf("Header ERROR!\n\n");
-			FILEDEBUG("Header Error - %u!\n", header);
+			FILEDEBUG("Header Error - 0x%08X\n", header, 0);
+			return true;			//descarta este bloco de dados.
 		}
 
-		GetDWORD(4, 1, (unsigned char*)Buffer, CopyData, &timestamp);
-		itime = (int) timestamp*0.1;
+		GetDWORD(1, 1, Buffer, CopyData, &timestamp);
+		itime = (int) timestamp*0.1;		
+
+		//ZERO SEEK!
+		if (zero_seek == true)
+		{			
+			if (itime != 0)
+			{
+				zscounter++;
+				bscounter=bscounter+block_size;
+				if (DEBUG) {printf("ZERO Seek ERROR!\n\n"); _getch();}
+				return true;		//descarta este bloco de dados e mantem a procura pelo ZERO.
+			}
+			FILEDEBUG("ZSK: %u - BS.acc: %u.\n", zscounter, bscounter);
+			zero_seek = false;
+			zscounter=0;
+			bscounter=0;
+		}
+		
 		fNumTime->SetIntNumber(itime);
 		//printf("itime: %u\n\n", itime);
-		
-		if (first_run == true)
-		{
-			first_run = false;
-			
-			if (itime != 0)
-				FILEDEBUG("NON ZERO - %u!\n", timestamp);
-		}
 
 		/********************************************************************************************/
 
@@ -721,10 +702,12 @@ bool MainFrame::Update(){
 			saving=false;
 
 		//For 3 seconds save test:
-		if ((stime > 3) && (fTime->GetIntNumber() == 3) && (fTable->GetState() != kButtonUp))
-		{
-			FILEDEBUG("Timestamp Error - %u!\n", timestamp);
-		}
+		#ifdef SAVE3
+			if ((stime > 3) && (fTime->GetIntNumber() == 3) && (fTable->GetState() != kButtonUp))
+			{
+				FILEDEBUG("Timestamp Error - %u!\n", timestamp, 0);
+			}
+		#endif
 
 		//Test Save Count Limit
 		if ((stime >= fTime->GetIntNumber()) && (fTime->GetIntNumber() > 0) && (saving == true)){
@@ -732,38 +715,33 @@ bool MainFrame::Update(){
 			saving=false;
 			printf("\ntime: %0.6u\n", stime);
 			FButtonRunMPD1();
-			while(core->GetRun() == true);
-			Sleep(500);
-			FButtonRunMPD1();
+			#ifdef SAVE3
+				while(core->GetRun() == true);
+				Sleep(500);
+				FButtonRunMPD1();
+			#endif
 		}
 
 		/********************************************************************************************/
-
 		
-		//printf(" - Read Size: %u\n\n", block_size);
-		//_getch();
-		/*
-		for (unsigned char i=0; i<63; i+=16)
+		for (unsigned short i=0; i<528; i+=132)
 		{
 			//Timestamp
-			GetDWORD(i+4, 1, (unsigned char*)Buffer, CopyData, &timestamp);
+			GetDWORD(i+1, 1, (unsigned char*)Buffer, CopyData, &timestamp);
 			printf("Timestamp ChA&B:%u\n", timestamp);
 			
 			//Counter A
-			GetDWORD(i+8, 1, (unsigned char*)Buffer, CopyData, &cntr);
+			GetDWORD(i+130, 1, Buffer, CopyData, &cntr);
 			if (timestamp > 0)
 				printf("Counter ChA:%u - Frequency: %08u\n", cntr, (cntr/timestamp)*10);
 			//Counter B
-			GetDWORD(i+12, 1, (unsigned char*)Buffer, CopyData, &cntr);
+			GetDWORD(i+131, 1, Buffer, CopyData, &cntr);
 			if (timestamp > 0)
 				printf("Counter ChB:%u - Frequency: %08u\n", cntr, (cntr/timestamp)*10);
 		}
 
 		printf("*******************************\n");
 		printf("*******************************\n");
-		*/
-		//_getch();
-		
 
 		/****************************************************************************************/
 
@@ -779,144 +757,81 @@ bool MainFrame::Update(){
 		//fNumCounter->SetIntNumber(dcounter);
 
 		if(fComboGraph->GetSelected() > 0){
-	
-			if (1/*setts->GetGraphsOpen() == false*/){
+					
+			/****************************************/
+			for(unsigned char i=0;i<128;i++) x[i] = i;
+			/****************************************/
 
-				switch(fComboGraph->GetSelected()){
-				//posicao
-					case 1: T_intgraph(Buffer+0, x, y, 0); break;
-					case 2: T_intgraph(Buffer+0, x, y, 2); break;
-					case 3: T_intgraph(Buffer+512, x, y, 0); break;
-					case 4: T_intgraph(Buffer+512, x, y, 2); break;
-					case 5: T_intgraph(Buffer+1024, x, y, 0); break;
-					case 6: T_intgraph(Buffer+1024, x, y, 2); break;
-					case 7: T_intgraph(Buffer+1536, x, y, 0); break;
-					case 8: T_intgraph(Buffer+1536, x, y, 2); break;
-				}
-								
-				//Initialize graph1
- 				fEcanvas1->GetCanvas()->cd();
- 				//if(graph1) delete graph1;
-				
-				graph1 = new TGraph(EVENT_SIZE, x, y);
-				graph1->SetTitle("Event");
-				graph1->SetEditable(kFALSE);
-				//graph1->SetMarkerStyle(kFullDotMedium);
-				//graph1->SetMarkerSize(1);
-				//graph1->SetMarkerColor(kRed);
-				graph1->SetLineColor(kRed);
-				graph1->GetYaxis()->SetRangeUser(-600, 600);
-				graph1->GetXaxis()->SetRangeUser(0, (EVENT_SIZE/**TIMEBIN*/));				
-				graph1->Draw("AL");			
-
-				fEcanvas1->GetCanvas()->Update();
-			}else{				
-				switch(graph_counter){
-				//posicao
-					case 1: 
-						T_intgraph(Buffer+0, x, y, 0); 
-						fGraphs->fEcanvas1->GetCanvas()->cd(); 
-						fGraphs->fEcanvas1->GetCanvas()->Update(); 
-					break;
-					case 2: 
-						T_intgraph(Buffer+256, x, y, 0); 
-						fGraphs->fEcanvas2->GetCanvas()->cd(); 
-						fGraphs->fEcanvas2->GetCanvas()->Update(); 
-					break;
-					case 3: 
-						T_intgraph(Buffer+512, x, y, 0); 
-						fGraphs->fEcanvas3->GetCanvas()->cd(); 
-						fGraphs->fEcanvas3->GetCanvas()->Update(); 
-					break;
-					case 4: 
-						T_intgraph(Buffer+768, x, y, 0); 
-						fGraphs->fEcanvas4->GetCanvas()->cd(); 
-						fGraphs->fEcanvas4->GetCanvas()->Update(); 
-					break;
-					case 5: 
-						T_intgraph(Buffer+1024, x, y, 0); 
-						fGraphs->fEcanvas5->GetCanvas()->cd(); 
-						fGraphs->fEcanvas5->GetCanvas()->Update(); 
-					break;
-					case 6: 
-						T_intgraph(Buffer+1280, x, y, 0); 
-						fGraphs->fEcanvas6->GetCanvas()->cd(); 
-						fGraphs->fEcanvas6->GetCanvas()->Update(); 
-					break;
-					case 7: 
-						T_intgraph(Buffer+1536, x, y, 0); 
-						fGraphs->fEcanvas7->GetCanvas()->cd(); 
-						fGraphs->fEcanvas7->GetCanvas()->Update(); 
-					break;
-					case 8: 
-						T_intgraph(Buffer+1792, x, y, 0); 
-						fGraphs->fEcanvas8->GetCanvas()->cd(); 
-						fGraphs->fEcanvas8->GetCanvas()->Update(); 
-					break;
-				}
-
-				//fEcanvas1->GetCanvas()->cd();
-
-				//sprintf(ch, "%s %u", "Ch", graph_counter);
-				//graph1 = new TGraph(EVENT_SIZE, x, y);
-				//graph1->SetTitle(ch);
-				//graph1->SetEditable(kFALSE);
-				//graph1->SetLineColor(kRed);
-				//graph1->GetYaxis()->SetRangeUser(-220, 50);
-				//graph1->GetXaxis()->SetRangeUser(0, (EVENT_SIZE/**TIMEBIN*/));				
-				//graph1->Draw("AL");
-
-				graph_counter++;
-				if (graph_counter == 9) graph_counter = 1;
+			switch(fComboGraph->GetSelected()){
+			//posicao
+				case 1: GetLSWORD(002, 128, Buffer, GraphData, y); break;
+				case 2: GetMSWORD(002, 128, Buffer, GraphData, y); break;
+				case 3: GetLSWORD(134, 128, Buffer, GraphData, y); break;
+				case 4: GetMSWORD(134, 128, Buffer, GraphData, y); break;
+				case 5: GetLSWORD(266, 128, Buffer, GraphData, y); break;
+				case 6: GetMSWORD(266, 128, Buffer, GraphData, y); break;
+				case 7: GetLSWORD(398, 128, Buffer, GraphData, y); break;
+				case 8: GetMSWORD(398, 128, Buffer, GraphData, y); break;
 			}
+							
+			//Initialize graph1
+			fEcanvas1->GetCanvas()->cd();
+			//if(graph1) delete graph1;
+			
+			graph1 = new TGraph(EVENT_SIZE, x, y);
+			graph1->SetTitle("Event");
+			graph1->SetEditable(kFALSE);
+			//graph1->SetMarkerStyle(kFullDotMedium);
+			//graph1->SetMarkerSize(1);
+			//graph1->SetMarkerColor(kRed);
+			graph1->SetLineColor(kRed);
+			graph1->GetYaxis()->SetRangeUser(-600, 600);
+			graph1->GetXaxis()->SetRangeUser(0, (EVENT_SIZE/**TIMEBIN*/));				
+			graph1->Draw("AL");			
 
-			/*
-			if (setts->GetGraphsOpen()){
-				printf("true\n");
-				fGraphs->PlotGraph1(x, y);
-			}else
-				printf("false\n");
-			*/
-
+			fEcanvas1->GetCanvas()->Update();
 		}
 		
 		//MEASURES
+		/*
 		if(1){
 
 			//fNumBaseline->SetNumber((base = get_baseline(yCAL)));
 			//fNumAmplitude->SetNumber(get_amplitude(EVENT_SIZE,base,yCAL));
 			//fNumCharge->SetNumber(get_charge(EVENT_SIZE,base,yCAL));
 		}
-		
+		*/
+
 		//SAVE CAL
 		if(fScal->GetState() != kButtonUp){
-			cal_count+= SaveCal(namevector, setts->GetChanTotal(), block_size, Buffer+1);
+			//cal_count+= SaveCal(namevector, setts->GetChanTotal(), block_size, (signed char*)Buffer+1);
 		}
 
 		//SAVE WAVE
 		if(fSave->GetState() != kButtonUp){
-			//SaveWave(namevector, setts->GetChanTotal(), block_size, Buffer+1);
-			printf("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaah!\n");
-			core->Test();
+			SaveWave(4, setts->GetChanConfig(), namevector, block_size, Buffer);
 		}
 
 		//SAVE TABLE
 		if(fTable->GetState() != kButtonUp){
-			/*if (fbslope == false)			
-				cal_count+= SaveNTable(namevector, setts->GetChanTotal(), block_size, Buffer+1);
-			else
-				cal_count+= SavePTable(namevector, setts->GetChanTotal(), block_size, Buffer+1);*/
+			
+			//If SAVE 3 seconds test is defined, Save Table should do NOTHING.
+			#ifndef SAVE3
+				if (fbslope == false)			
+					//cal_count+= SaveNTable(namevector, setts->GetChanTotal(), block_size, (signed char*)Buffer+1);
+				else
+					//cal_count+= SavePTable(namevector, setts->GetChanTotal(), block_size, (signed char*)Buffer+1);
+			#endif
 		}
 
 		//Test Save Count Limit
-		if ((cal_count >= fCount->GetIntNumber()) && (fCount->GetIntNumber() > 0)){
+		if ((cal_count >= (unsigned long)fCount->GetIntNumber()) && (fCount->GetIntNumber() > 0)){
 			printf("\ncal_count: %0.6u\n", cal_count);
 			cal_count = 0;
 			FButtonRunMPD1();
 		}
 
 		return true;
-
 	}
 	
 	return false;

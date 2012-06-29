@@ -2,6 +2,9 @@
 
 //#include <stdlib.h>
 
+#pragma warning(push)
+#pragma warning(disable:4800)
+
 #include <TROOT.h>
 #include <TApplication.h>
 #include <TVirtualX.h>
@@ -45,6 +48,8 @@
 //#include <TFile.h>
 //#include <TKey.h>
 //#include <TGFontDialog.h>
+
+#pragma warning(pop)
 
 #include "c_Settings.h"
 

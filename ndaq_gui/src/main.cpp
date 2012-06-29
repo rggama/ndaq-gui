@@ -6,10 +6,6 @@
 // Copyright   : IF YOU COPY THIS, YOU'RE A HUGE VAGABUNDO!
 // Description : Not today...
 //=============================================================================
-#define _CRT_SECURE_CPP_OVERLOAD_STANDARD_NAMES 1
-//#define _CRT_SECURE_CPP_OVERLOAD_SECURE_NAMES 1
-#define _CRT_SECURE_CPP_OVERLOAD_STANDARD_NAMES_COUNT 1
-#define	_CRT_SECURE_NO_WARNINGS 1
 
 #include "main.h"
 //#include <conio.h>	//for getch() in a test procedure below.

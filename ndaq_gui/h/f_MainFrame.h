@@ -9,6 +9,9 @@
 //#include <iostream>
 //using namespace std;	
 
+#pragma warning(push)
+#pragma warning(disable:4800)
+
 //#include <TQObject.h>
 //#include <RQ_OBJECT.h>
 //#include <TObject.h>
@@ -34,6 +37,8 @@
 #include <TGLabel.h>
 //#include <TAxis.h> 
 //#include <TGIcon.h> 
+
+#pragma warning(pop)
 
 #include "c_Core.h"
 #include "f_Channels.h"
