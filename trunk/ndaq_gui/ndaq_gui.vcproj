@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="Windows-1252"?>
 <VisualStudioProject
 	ProjectType="Visual C++"
-	Version="9,00"
+	Version="9.00"
 	Name="ndaq_gui"
 	ProjectGUID="{C65A2690-24DE-4658-9F3E-2810DEE81F94}"
 	RootNamespace="ndaq_gui"
@@ -112,6 +112,7 @@
 				Optimization="2"
 				EnableIntrinsicFunctions="true"
 				AdditionalIncludeDirectories=".\h"
+				PreprocessorDefinitions="_CRT_SECURE_NO_WARNINGS;_WARNING(disable:4800)"
 				RuntimeLibrary="2"
 				EnableFunctionLevelLinking="true"
 				WarningLevel="3"
@@ -229,6 +230,10 @@
 			</File>
 			<File
 				RelativePath=".\h\c_Settings.h"
+				>
+			</File>
+			<File
+				RelativePath=".\h\calibration.h"
 				>
 			</File>
 			<File

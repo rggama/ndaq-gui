@@ -13,6 +13,7 @@ private:
 	MPD *fmpd0;
 
 	unsigned char lc_config;
+	unsigned char acq_config;
 	
 
 protected:
@@ -31,15 +32,16 @@ public:
 	void ToggleRun();
 	unsigned int Acq(unsigned char *Buffer);
 	unsigned char MapChannels(unsigned char config, unsigned char *channel);
-	unsigned char WriteReg(unsigned char addr, unsigned char data);
-	unsigned char ReadReg(unsigned char addr);
+	unsigned char WriteReg_T(unsigned char addr, unsigned char data, unsigned char id);
+	unsigned char WriteReg(unsigned char addr, unsigned char data, unsigned char id);
+	unsigned char ReadReg(unsigned char addr, unsigned char id);
 	void CheckClear(void);
 	void Loopback(void);
 	void TestVmeRW(void);
 	void TestCoreRW(void);
-	unsigned char WriteSSPI(unsigned char data);
-	unsigned char WriteCore(unsigned char addr, unsigned char data);
-	unsigned char ReadCore(unsigned char addr);
+	unsigned char WriteSSPI(unsigned char data, unsigned char id);
+	unsigned char WriteCore(unsigned char addr, unsigned char data, unsigned char id);
+	unsigned char ReadCore(unsigned char addr, unsigned char id);
 	void Test();
 
 	//ClassDef(Core,0);

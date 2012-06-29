@@ -298,7 +298,7 @@ void fChannelsFrame::HandleButtons(Int_t id)
          fRad1->SetState(kButtonUp);
          break;
       case 92:
-         fChanList->SetMultipleSelections(fCheckMulti->GetState());
+         //fChanList->SetMultipleSelections(fCheckMulti->GetState());
          break;
       default:
          break;
