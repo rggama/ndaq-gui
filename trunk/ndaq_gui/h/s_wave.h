@@ -1,28 +1,26 @@
 #include <stdio.h>
 
+//
 void SetFilename(unsigned char config, char *namevector, char *filename, char *suffix);
 
-//*r is a pointer to a SIGNED SHORT.
+//*r is a pointer to a UNSIGNED SHORT.
+//*r will be incremented if a sample was sucessfully written. Otherwise, *r will be kept.
 void SaveRawData(unsigned short data, unsigned short offset, const void *r);
+//*r is a pointer to a SIGNED INT.
+//*r is the Sumatorie.
+void GetSum(unsigned short data, unsigned short offset, const void *r);
+//*r is a pointer to a SIGNED SHORT.
+//*r is the Negative Peak.
+void GetNPeak(unsigned short data, unsigned short offset, const void *r);
+//*r is a pointer to a SIGNED SHORT.
+//*r is the Negative Peak.
+void GetPPeak(unsigned short data, unsigned short offset, const void *r);
+
 //
-signed int GetSample(signed char *buffer, signed char *addr);
-
-void SaveWave(unsigned char t_blocks, unsigned char config, char *namevector, unsigned short block_size, unsigned char *buffer);
-unsigned int SaveCal(char *namevector, unsigned char t_channels, unsigned int block_size, signed char *buffer);
-unsigned int SavePTable(char *namevector, unsigned char t_channels, unsigned int block_size, signed char *buffer);
-unsigned int SaveNTable(char *namevector, unsigned char t_channels, unsigned int block_size, signed char *buffer);
-
-double GetBaseline(signed char *buffer, unsigned int w);
-//double GetPAmplitude(signed char *buffer, unsigned int w, double *basetmp);
-//double GetNAmplitude(signed char *buffer, unsigned int w, double *basetmp);
-
-signed int GetPPeak(signed char *buffer, unsigned int addr, unsigned char start, unsigned char end);
-signed int GetNPeak(signed char *buffer, unsigned int addr, unsigned char start, unsigned char end);
-//signed char *GetPPeak(signed char *buffer, signed char *addr, unsigned int size);
-//signed char *GetNPeak(signed char *buffer, signed char *addr, unsigned int size);
-
-double GetPInt(signed char *buffer, double base, unsigned int addr, unsigned char start, unsigned char end);
-
-//void SaveColumn(char *namevector, unsigned char t_channels, unsigned int block_size, signed char *buffer);
-//signed char GetPHigher(signed char *buffer, unsigned int w);
-//signed char GetNHigher(signed char *buffer, unsigned int w);
+unsigned short SaveWave(unsigned char t_blocks, unsigned char config, char *namevector, unsigned short block_size, unsigned char *buffer);
+//
+unsigned short SaveCal(unsigned char t_blocks, unsigned char config, char *namevector, unsigned short block_size, unsigned char *buffer);
+//
+unsigned short SaveNTable(unsigned char t_blocks, unsigned char config, char *namevector, unsigned short block_size, unsigned char *buffer);
+//
+unsigned short SavePTable(unsigned char t_blocks, unsigned char config, char *namevector, unsigned short block_size, unsigned char *buffer);

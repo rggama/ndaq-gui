@@ -1,7 +1,7 @@
 /**/
 #define DEBUG				0
 #define FDEBUG				1
-#define SAVE3				1
+//#define SAVE3				0
 
 //#define LINUX				1
 
@@ -28,9 +28,9 @@
 //Block Size per FIFO (in SLOTs)
 #define FIFO_BS				(HEADER_SIZE+TIMESTAMP_SIZE+ADC_SIZE+COUNTER_SIZE)
 //All FIFOs Block Size (in SLOTs)
-#define FULL_BS				FIFO_BS * 4
+//#define FULL_BS				FIFO_BS * 4
 //All FIFOs Block Size in bytes
-#define FULL_BS_BYTES		FULL_BS * SLOT_SIZE
+//#define FULL_BS_BYTES		FULL_BS * SLOT_SIZE
 
 #define EVENT_SIZE			128								//Quantidade de samples por trigger
 #define BLOCK_SIZE			65472 //2112 //65536
@@ -38,16 +38,13 @@
 
 #define _step_				2
 
-#define CAL_SMP				40	//50
+#define CAL_SMP_OFFSET		32	
 
-#define BASEOFS				5
-#define BASEINT				10 //EVENT_SIZE/4
+#define BASE_OFFSET			5
+#define BASE_INTEGRAL		10
 
-#define PK_START			5
-#define PK_END				120
-
-#define INT_START			32
-#define INT_END				60
+#define PK_OFFSET			20
+#define PK_INTERVAL			100
 
 #define TIMEBIN				8.0f							//ns
 

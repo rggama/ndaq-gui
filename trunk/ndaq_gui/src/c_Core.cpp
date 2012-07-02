@@ -157,9 +157,9 @@ void Core::SetRun(bool state)
 		TestWCore(0x89, 0x00, 5);					//ACQ Reset Deassert.
 		Sleep(32);
 
-		TestWCore(0x91, (acq_config | 0x1F), 6);	//Enables desired enables.
+		TestWCore(0x91, (acq_config | 0x1F), 6);	//Enables desired ACQ enables.
 
-		TestWCore(0x80, 0x6E, 7);					//DataBuilder Configuration.
+		TestWCore(0x80, 0x6E, 7);					//Core DataBuilder Configuration.
 		Sleep(32);
 
 		TestWCore(0x80, 0x6F, 8);					//DataBuilder Enable.
@@ -191,7 +191,7 @@ void Core::SetRun(bool state)
 		
 		TestWCore(0x91, 0x00, 16);					//Disable all ACQ enables.
 
-		TestWCore(0x80, 0x00, 19);					//Disable all DataBuilder enables.
+		TestWCore(0x80, 0x00, 19);					//Disable all Core DataBuilder enables.
 		
 		//TestWCore(0x87, 0x00);					//ADC Power-down.
 				
