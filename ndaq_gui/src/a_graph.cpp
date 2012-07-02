@@ -45,7 +45,6 @@ void CopyData(unsigned int data, unsigned short offset, const void *r)
 	const unsigned int *rptr = (const unsigned int *) r;
 	unsigned int *vptr = (unsigned int*)rptr;
 
-
 	vptr+=offset;
 	*vptr = data;
 }
@@ -53,15 +52,11 @@ void CopyData(unsigned int data, unsigned short offset, const void *r)
 //*r is a pointer to a SIGNED INT.
 void GraphData(unsigned short data, unsigned short offset, const void *r)
 {
-	signed short temp = 0;
 	const signed int *rptr = (const signed int *) r;
 	signed int *vptr = (signed int*)rptr;
-
-	temp = (signed short)(data<<6);
-	temp = temp>>6;
 	
 	vptr+=offset;
-	*vptr = temp;
+	*vptr = _10B_TO_SIGNED_(data);
 }
 
 //LS 16 bits - mode 1
@@ -97,4 +92,14 @@ unsigned int BuildDWORD(unsigned char *Buffer)
 	data.byte3 = *(Buffer+3);
 
 	return data.dword;
+}
+
+//
+signed short _10B_TO_SIGNED_(unsigned short data)
+{
+	signed short temp = 0;
+	
+	temp = (signed short)(data<<6);
+	
+	return temp>>6;
 }

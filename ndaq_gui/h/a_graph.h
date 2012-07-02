@@ -36,6 +36,8 @@ void GetLSWORD(unsigned short offset, unsigned short size, unsigned char *Buffer
 //MS 16 bits
 void GetMSWORD(unsigned short offset, unsigned short size, unsigned char *Buffer,
 				void (*action)(unsigned short data, unsigned short offset, const void *r), const void *y);
+//
+signed short _10B_TO_SIGNED_(unsigned short data);
 
 //*r is a pointer to an UNSIGNED INT.
 void CopyData(unsigned int data, unsigned short offset, const void *r);

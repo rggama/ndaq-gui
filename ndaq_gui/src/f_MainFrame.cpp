@@ -30,7 +30,7 @@ TGComboBox *fComboFrom;
 
 //unsigned long int totalEvents=0;
 Long_t totalEvents=0;
-unsigned long cal_count=0;
+unsigned long save_count=0;
 //int t_zero=0;
 UInt_t dcounter=0;
 UInt_t ldcounter=0;
@@ -490,8 +490,8 @@ void MainFrame::SettingsUpdate()
 
 	/**********************************************/
 	//Forcing Full Channel Enable for test purposes!
-	setts->SetChanConfig(0xFF);
-	setts->SetChanTotal(8);
+	//setts->SetChanConfig(0xFF);
+	//setts->SetChanTotal(8);
 	/**********************************************/
 
 	printf("Channel Config: %u\n", setts->GetChanConfig());
@@ -596,7 +596,7 @@ void MainFrame::FButtonRunMPD1()
 
 		SetFilename(setts->GetChanConfig(), namevector, filename, suffix);
 		totalEvents=0;
-		cal_count=0;
+		save_count=0;
 		fNumEvents->SetIntNumber(totalEvents);
 		fButtonRunMPD1->SetText("Stop");
 	
@@ -639,7 +639,6 @@ bool MainFrame::Update(){
 	unsigned int	header=0;
 	unsigned int	timestamp=0;
 	unsigned int	cntr=0;
-	double			ftime=0;
 
 	signed int x[EVENT_SIZE];
 	signed int y[EVENT_SIZE];
@@ -764,14 +763,14 @@ bool MainFrame::Update(){
 
 			switch(fComboGraph->GetSelected()){
 			//posicao
-				case 1: GetLSWORD(002, 128, Buffer, GraphData, y); break;
-				case 2: GetMSWORD(002, 128, Buffer, GraphData, y); break;
-				case 3: GetLSWORD(134, 128, Buffer, GraphData, y); break;
-				case 4: GetMSWORD(134, 128, Buffer, GraphData, y); break;
-				case 5: GetLSWORD(266, 128, Buffer, GraphData, y); break;
-				case 6: GetMSWORD(266, 128, Buffer, GraphData, y); break;
-				case 7: GetLSWORD(398, 128, Buffer, GraphData, y); break;
-				case 8: GetMSWORD(398, 128, Buffer, GraphData, y); break;
+				case 1: GetLSWORD(ADC_OFFSET+(0*FIFO_BS), ADC_SIZE, Buffer, GraphData, y); break;
+				case 2: GetMSWORD(ADC_OFFSET+(0*FIFO_BS), ADC_SIZE, Buffer, GraphData, y); break;
+				case 3: GetLSWORD(ADC_OFFSET+(1*FIFO_BS), ADC_SIZE, Buffer, GraphData, y); break;
+				case 4: GetMSWORD(ADC_OFFSET+(1*FIFO_BS), ADC_SIZE, Buffer, GraphData, y); break;
+				case 5: GetLSWORD(ADC_OFFSET+(2*FIFO_BS), ADC_SIZE, Buffer, GraphData, y); break;
+				case 6: GetMSWORD(ADC_OFFSET+(2*FIFO_BS), ADC_SIZE, Buffer, GraphData, y); break;
+				case 7: GetLSWORD(ADC_OFFSET+(3*FIFO_BS), ADC_SIZE, Buffer, GraphData, y); break;
+				case 8: GetMSWORD(ADC_OFFSET+(3*FIFO_BS), ADC_SIZE, Buffer, GraphData, y); break;
 			}
 							
 			//Initialize graph1
@@ -792,7 +791,7 @@ bool MainFrame::Update(){
 			fEcanvas1->GetCanvas()->Update();
 		}
 		
-		//MEASURES
+		//MEASUREMENTS
 		/*
 		if(1){
 
@@ -804,12 +803,12 @@ bool MainFrame::Update(){
 
 		//SAVE CAL
 		if(fScal->GetState() != kButtonUp){
-			//cal_count+= SaveCal(namevector, setts->GetChanTotal(), block_size, (signed char*)Buffer+1);
+			save_count+= SaveCal(4, setts->GetChanConfig(), namevector, block_size, Buffer);
 		}
 
 		//SAVE WAVE
 		if(fSave->GetState() != kButtonUp){
-			SaveWave(4, setts->GetChanConfig(), namevector, block_size, Buffer);
+			save_count += SaveWave(4, setts->GetChanConfig(), namevector, block_size, Buffer);
 		}
 
 		//SAVE TABLE
@@ -818,16 +817,16 @@ bool MainFrame::Update(){
 			//If SAVE 3 seconds test is defined, Save Table should do NOTHING.
 			#ifndef SAVE3
 				if (fbslope == false)			
-					//cal_count+= SaveNTable(namevector, setts->GetChanTotal(), block_size, (signed char*)Buffer+1);
+					save_count+= SaveNTable(4, setts->GetChanConfig(), namevector, block_size, Buffer);
 				else
-					//cal_count+= SavePTable(namevector, setts->GetChanTotal(), block_size, (signed char*)Buffer+1);
+					save_count+= SavePTable(4, setts->GetChanConfig(), namevector, block_size, Buffer);
 			#endif
 		}
 
 		//Test Save Count Limit
-		if ((cal_count >= (unsigned long)fCount->GetIntNumber()) && (fCount->GetIntNumber() > 0)){
-			printf("\ncal_count: %0.6u\n", cal_count);
-			cal_count = 0;
+		if ((save_count >= (unsigned long)fCount->GetIntNumber()) && (fCount->GetIntNumber() > 0)){
+			printf("\nsave_count: %0.6u\n", save_count);
+			save_count = 0;
 			FButtonRunMPD1();
 		}
 

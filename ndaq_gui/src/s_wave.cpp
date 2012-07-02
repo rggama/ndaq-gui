@@ -15,11 +15,10 @@ void SetFilename(unsigned char config, char *namevector, char *filename, char *s
 	for(unsigned char i=0;i<MAX_CHANNELS;i++){
 	
 		//if(*channel++ != 0){
-		if ((config & btst) == btst){
-
+		//if channel is enabled...
+		if ((config & btst) == btst)
+		{
 			sprintf(namevector, "%s_%s%u.txt", filename, suffix, i+1);
-			//namevector+=13;
-			//printf("Strlen: %u\n", strlen(namevector));
 			namevector+=(strlen(namevector)+1);
 		}
 		btst = btst<<1;
@@ -28,38 +27,62 @@ void SetFilename(unsigned char config, char *namevector, char *filename, char *s
 
 /**************************************************************************************************************************/
 
-signed int GetSample(signed char *buffer, signed char *addr)
+//*r is a pointer to a UNSIGNED SHORT.
+//*r will be incremented if a sample was sucessfully written. Otherwise, *r will be kept.
+void SaveRawData(unsigned short data, unsigned short offset, const void *r)
 {
-	signed int temp = 0;
-
-
-	temp=_J_(buffer = addr);
+	const unsigned short *rptr = (const unsigned short *) r;
+	unsigned short *cptr = (unsigned short *) rptr;
 	
-	return temp>>6;
+	if (fprintf(file, "%d\t", _10B_TO_SIGNED_(data)) > 0) (*cptr)++;
+}
+
+//*r is a pointer to a SIGNED INT.
+//*r is the Sumatorie.
+void GetSum(unsigned short data, unsigned short offset, const void *r)
+{
+	const signed int *rptr = (const signed int *) r;
+	signed int *vptr = (signed int *) rptr;
+
+	(*vptr)+= _10B_TO_SIGNED_(data);
 }
 
 //*r is a pointer to a SIGNED SHORT.
-void SaveRawData(unsigned short data, unsigned short offset, const void *r)
+//*r is the Negative Peak.
+void GetNPeak(unsigned short data, unsigned short offset, const void *r)
 {
-	signed short temp = 0;
-	//const signed short *rptr = (const signed short *) r;
+	const signed short *rptr = (const signed short *) r;
+	signed short *vptr = (signed short *) rptr;
+	signed short sdata = 0;
 
-	temp = (signed short)(data<<6);
-	
-	//printf("sample: %u\n", offset);
-	fprintf(file, "%d\t", temp>>6);
+	if ((sdata = _10B_TO_SIGNED_(data)) < *vptr) *vptr = sdata; 
+}
+
+//*r is a pointer to a SIGNED SHORT.
+//*r is the Negative Peak.
+void GetPPeak(unsigned short data, unsigned short offset, const void *r)
+{
+	const signed short *rptr = (const signed short *) r;
+	signed short *vptr = (signed short *) rptr;
+	signed short sdata = 0;
+
+	if ((sdata = _10B_TO_SIGNED_(data)) > *vptr) *vptr = sdata; 
 }
 
 /**************************************************************************************************************************/
 
-//cada linha é um evento ou waveform
-//colunas = EVENT_SIZE
-//linhas = quantidade de eventos ou waveforms
-void SaveWave(unsigned char t_blocks, unsigned char config, char *namevector, unsigned short block_size, unsigned char *buffer){
-	
+//Cada linha possui o numero de amostras em um evento ou waveform.
+//Portanto, o numero de colunas é igual ao numero de amostras em uma waveform.
+//O total de linhas, ou waveforms, dependerá do tamanho do bloco de dados recebido. 
+unsigned short SaveWave(unsigned char t_blocks, unsigned char config, char *namevector, unsigned short block_size, unsigned char *buffer)
+{
 	unsigned char btst = 0x01;
-	//signed short temp[ADC_SIZE];
-	
+	unsigned short counter=0;
+	unsigned short total=0;
+
+	//Converting 'block_size' from byte to SLOT_SIZE.
+	block_size = block_size/SLOT_SIZE;
+
 	//Block counter - Each block contains 2 ADC channels. But we'll have to check if both are enabled 
 	//for saving.
 	for(unsigned char c=0;c<t_blocks;c++)
@@ -70,18 +93,23 @@ void SaveWave(unsigned char t_blocks, unsigned char config, char *namevector, un
 			file = fopen(namevector, "a+t");
 
 			//Save ALL samples from even indexed ADC channels (contained into a single FIFO block)...
-			for(unsigned short block_index=(c*FIFO_BS); block_index<(block_size/SLOT_SIZE); block_index+=(FIFO_BS*t_blocks))
+			for(unsigned short block_index=(c*FIFO_BS); block_index<block_size; block_index+=(FIFO_BS*t_blocks))
 			{
 				//Even ADC indexes (0, 2, 4, 6 which corresponds to channels 1, 3, 5, 7) are on LSWords.
 				//The function below will retrieve ADC_SIZE samples from the memory buffer. These samples 
 				//will be written as a line on a ASCII file.
-				GetLSWORD(ADC_OFFSET+block_index, ADC_SIZE, buffer, SaveRawData, NULL);
+				GetLSWORD(ADC_OFFSET+block_index, ADC_SIZE, buffer, SaveRawData, &counter);
 				fprintf(file, "\n");
 			}
 
 			fclose(file);
 			//next filename.
 			namevector+=(strlen(namevector)+1);
+	
+			//'counter' is the written samples count. To get the written lines (waveforms) value,
+			// we must divide 'counter' by ADC_SAMPLES (number of samples in a waveform).
+			total += (counter/ADC_SAMPLES);
+			counter = 0;
 		}
 		btst = btst<<1;
 		
@@ -90,225 +118,314 @@ void SaveWave(unsigned char t_blocks, unsigned char config, char *namevector, un
 		{
 			file = fopen(namevector, "a+t");
 			//Save ALL samples from the save enabled ADC channels (contained into a single FIFO block)...
-			for(unsigned short block_index=(c*FIFO_BS); block_index<(block_size/SLOT_SIZE); block_index+=(FIFO_BS*t_blocks))
+			for(unsigned short block_index=(c*FIFO_BS); block_index<block_size; block_index+=(FIFO_BS*t_blocks))
 			{
 				//Odd ADC indexes (1, 3, 5, 7 which corresponds to channels 2, 4, 6, 8) are on MSWords.
 				//The function below will retrieve ADC_SIZE samples from the memory buffer. These samples 
 				//will be written as a line on a ASCII file.
-				GetMSWORD(ADC_OFFSET+block_index, ADC_SIZE, buffer, SaveRawData, NULL);
+				GetMSWORD(ADC_OFFSET+block_index, ADC_SIZE, buffer, SaveRawData, &counter);
 				fprintf(file, "\n");
 			}
 			fclose(file);
 			//next filename.
 			namevector+=(strlen(namevector)+1);
+
+			//'counter' is the written samples count. To get the written lines (waveforms) value,
+			// we must divide 'counter' by ADC_SAMPLES (number of samples in a waveform).
+			total += (counter/ADC_SAMPLES);
+			counter = 0;
 		}
 		btst = btst<<1;
-
-		//printf("block index %u - channel: %u\n", block_index, c);
-		//_getch();
 	}
+
+	//returns the total written lines (waveforms).
+	return total;
 }
 
-unsigned int SaveCal(char *namevector, unsigned char t_channels, unsigned int block_size, signed char *buffer){
+//Salva uma amostra de ADC, definida por CAL_SMP_OFFSET, contida em um bloco de dados.
+unsigned short SaveCal(unsigned char t_blocks, unsigned char config, char *namevector, unsigned short block_size, unsigned char *buffer)
+{
+	unsigned char btst = 0x01;
+	unsigned short counter=0;
+	unsigned short total=0;
+
+	//Converting 'block_size' from byte to SLOT_SIZE.
+	block_size = block_size/SLOT_SIZE;
+
+	//Block counter - Each block contains 2 ADC channels. But we'll have to check if both are enabled 
+	//for saving.
+	for(unsigned char c=0;c<t_blocks;c++)
+	{
+		//Even indexed ADC channel check.
+		if ((config & btst) == btst)
+		{
+			file = fopen(namevector, "a+t");
+
+			//Save ONE sample from even indexed ADC channels (contained into a single FIFO block)...
+			for(unsigned short block_index=(c*FIFO_BS); block_index<block_size; block_index+=(FIFO_BS*t_blocks))
+			{
+				//Even ADC indexes (0, 2, 4, 6 which corresponds to channels 1, 3, 5, 7) are on LSWords.
+				//The function below will retrieve ONE sample from the memory buffer. These sample 
+				//will be written as a line on a ASCII file.
+				GetLSWORD(ADC_OFFSET+CAL_SMP_OFFSET+block_index, 1, buffer, SaveRawData, &counter);
+				fprintf(file, "\n");
+			}
+
+			fclose(file);
+			//next filename.
+			namevector+=(strlen(namevector)+1);
 	
-	unsigned int counter = 0;
-
-	for(unsigned char c=0;c<t_channels;c++){
-	
-
-		file = fopen(namevector, "a+t");
-
-		//line
-		for(unsigned int i=(c*(EVENT_SIZE*_step_));i<block_size;i+=((EVENT_SIZE*_step_)*t_channels)){
-			
-			fprintf(file, "%d\n", GetSample(buffer, &buffer[i+CAL_SMP*_step_]));
-			//printf("Raw: %d\r", GetSample(buffer, &buffer[i+CAL_SMP*_step_]));
-			counter++;
+			//'counter' is the written samples count (should be 1 if everything went right). 
+			total += counter;
+			counter = 0;
 		}
-		fclose(file);
-		namevector+=(strlen(namevector)+1);
-	}
-	
-	return counter;
-}
-
-unsigned int SavePTable(char *namevector, unsigned char t_channels, unsigned int block_size, signed char *buffer){
-	
-	unsigned int counter = 0;
-	double base = 0;
-	double peak = 0;
-	double intg = 0;
-	
-	for(unsigned char c=0;c<t_channels;c++){
-	
-		file = fopen(namevector, "a+t");
-	
-		//line
-		for(unsigned int i=(c*(EVENT_SIZE*_step_));i<block_size;i+=((EVENT_SIZE*_step_)*t_channels)){
+		btst = btst<<1;
 		
-			peak = GetPPeak(buffer, i, PK_START, PK_END)*A+B;
-			base = GetBaseline(buffer, i)*A+B;
-			//intg = GetPInt(buffer, base, i, INT_START, INT_END)*A+B;
+		//Odd indexed ADC channel check.
+		if ((config & btst) == btst)
+		{
+			file = fopen(namevector, "a+t");
+			//Save ALL samples from the save enabled ADC channels (contained into a single FIFO block)...
+			for(unsigned short block_index=(c*FIFO_BS); block_index<block_size; block_index+=(FIFO_BS*t_blocks))
+			{
+				//Odd ADC indexes (1, 3, 5, 7 which corresponds to channels 2, 4, 6, 8) are on MSWords.
+				//The function below will retrieve ADC_SIZE samples from the memory buffer. These samples 
+				//will be written as a line on a ASCII file.
+				GetMSWORD(ADC_OFFSET+CAL_SMP_OFFSET+block_index, 1, buffer, SaveRawData, &counter);
+				fprintf(file, "\n");
+			}
+			fclose(file);
+			//next filename.
+			namevector+=(strlen(namevector)+1);
 
-			fprintf(file, "%0.2f\t%0.2f\n", base, (peak - (base)));
-			//printf("Base, Amp: %0.2f\t%0.2f\r", base, (peak - (base)));
-			counter++;
-
+			//'counter' is the written samples count (should be 1 if everything went right). 
+			total += counter;
+			counter = 0;
 		}
-		fclose(file);
-		namevector+=(strlen(namevector)+1);
+		btst = btst<<1;
 	}
-	
-	return counter;
+
+	//returns the total written samples.
+	return total;
 }
 
-unsigned int SaveNTable(char *namevector, unsigned char t_channels, unsigned int block_size, signed char *buffer){
-	
-	unsigned int counter = 0;
-	double base = 0;
-	double peak = 0;
-	double intg = 0;
-	
-	for(unsigned char c=0;c<t_channels;c++){
-	
-		file = fopen(namevector, "a+t");
-	
-		//line
-		for(unsigned int i=(c*(EVENT_SIZE*_step_));i<block_size;i+=((EVENT_SIZE*_step_)*t_channels)){
-		
-			peak = GetNPeak(buffer, i, PK_START, PK_END)*A+B;
-			base = GetBaseline(buffer, i)*A+B;
-			//intg = GetPInt(buffer, base, i, INT_START, INT_END)*A+B;
+//
+unsigned short SaveNTable(unsigned char t_blocks, unsigned char config, char *namevector, unsigned short block_size, unsigned char *buffer)
+{
+	unsigned char btst = 0x01;
+	unsigned short counter=0;
+	unsigned short total=0;
 
-			fprintf(file, "%0.2f\t%0.2f\n", base, (peak - (base)));
-			//printf("Base, Amp: %0.2f\t%0.2f\r", base, (peak - (base)));
-			counter++;
+	signed short peak = 32767; //Maximum for a signed short.
+	signed int acc = 0;
+	double baseline = 0;
+	double amplitude = 0;
 
+	//Converting 'block_size' from byte to SLOT_SIZE.
+	block_size = block_size/SLOT_SIZE;
+
+	//Block counter - Each block contains 2 ADC channels. But we'll have to check if both are enabled 
+	//for saving.
+	for(unsigned char c=0;c<t_blocks;c++)
+	{
+		//Even indexed ADC channel check.
+		if ((config & btst) == btst)
+		{
+			file = fopen(namevector, "a+t");
+
+			//Calculating/Saving baseline/amplitude from even indexed ADC channels (contained into a single FIFO block)...
+			for(unsigned short block_index=(c*FIFO_BS); block_index<block_size; block_index+=(FIFO_BS*t_blocks))
+			{
+				//Even ADC indexes (0, 2, 4, 6 which corresponds to channels 1, 3, 5, 7) are on LSWords.
+				
+				//Peak:
+				//1) We will find the waveform's NEGATIVE peak value starting at PK_OFFSET.
+				GetLSWORD(ADC_OFFSET+PK_OFFSET+block_index, PK_INTERVAL, buffer, GetNPeak, &peak);
+				//2) We have to consider ADC calibration for the final value.
+				peak = peak*A+B;
+
+				//Baseline:
+				//1) 'acc' is the sumatorie of BASE_INTEGRAL ADC samples starting at BASE_OFFSET.
+				GetLSWORD(ADC_OFFSET+BASE_OFFSET+block_index, BASE_INTEGRAL, buffer, GetSum, &acc);
+				//2) 'baseline' is the mean value of the above sumatorie.
+				baseline = acc / BASE_INTEGRAL;
+				//3) We have to consider ADC calibration for the final value.
+				baseline = baseline*A+B;
+
+				//Amplitude: It's the Peak - Baseline.
+				amplitude = peak - (baseline);
+				if (fprintf(file, "%0.2f\t%0.2f\n", baseline, amplitude) > 0) counter++;
+
+				//reseting vars.
+				peak = 32767;
+				acc = 0;
+			}
+
+			fclose(file);
+			//next filename.
+			namevector+=(strlen(namevector)+1);
+	
+			//'counter' is the written baseline/amplitude pair count.
+			total += counter;
+			counter = 0;
 		}
-		fclose(file);
-		namevector+=(strlen(namevector)+1);
+		btst = btst<<1;
+		
+		//Odd indexed ADC channel check.
+		if ((config & btst) == btst)
+		{
+			file = fopen(namevector, "a+t");
+
+			//Calculating/Saving baseline/amplitude from odd indexed ADC channels (contained into a single FIFO block)...
+			for(unsigned short block_index=(c*FIFO_BS); block_index<block_size; block_index+=(FIFO_BS*t_blocks))
+			{
+				//Odd ADC indexes (1, 3, 5, 7 which corresponds to channels 2, 4, 6, 8) are on MSWords.
+
+				//Peak:
+				//1) We will find the waveform's NEGATIVE peak value starting at PK_OFFSET.
+				GetMSWORD(ADC_OFFSET+PK_OFFSET+block_index, PK_INTERVAL, buffer, GetNPeak, &peak);
+				//2) We have to consider ADC calibration for the final value.
+				peak = peak*A+B;
+
+				//Baseline:
+				//1) 'acc' is the sumatorie of BASE_INTEGRAL ADC samples starting at BASE_OFFSET.
+				GetMSWORD(ADC_OFFSET+BASE_OFFSET+block_index, BASE_INTEGRAL, buffer, GetSum, &acc);
+				//2) 'baseline' is the mean value of the above sumatorie.
+				baseline = acc / BASE_INTEGRAL;
+				//3) We have to consider ADC calibration for the final value.
+				baseline = baseline*A+B;
+
+				//Amplitude: It's the Peak - Baseline.
+				amplitude = peak - (baseline);
+				if (fprintf(file, "%0.2f\t%0.2f\n", baseline, amplitude) > 0) counter++;
+
+				//reseting vars.
+				peak = 32767;
+				acc = 0;
+			}
+			fclose(file);
+			//next filename.
+			namevector+=(strlen(namevector)+1);
+
+			//'counter' is the written baseline/amplitude pair count.
+			total += counter;
+			counter = 0;
+		}
+		btst = btst<<1;
 	}
+
+	//returns the total written baseline/amplitude pair count (lines).
+	return total;
+}
+
+//
+unsigned short SavePTable(unsigned char t_blocks, unsigned char config, char *namevector, unsigned short block_size, unsigned char *buffer)
+{
+	unsigned char btst = 0x01;
+	unsigned short counter=0;
+	unsigned short total=0;
+
+	signed short peak = -32768; //Minimum for a signed short.
+	signed int acc = 0;
+	double baseline = 0;
+	double amplitude = 0;
+
+	//Converting 'block_size' from byte to SLOT_SIZE.
+	block_size = block_size/SLOT_SIZE;
+
+	//Block counter - Each block contains 2 ADC channels. But we'll have to check if both are enabled 
+	//for saving.
+	for(unsigned char c=0;c<t_blocks;c++)
+	{
+		//Even indexed ADC channel check.
+		if ((config & btst) == btst)
+		{
+			file = fopen(namevector, "a+t");
+
+			//Calculating/Saving baseline/amplitude from even indexed ADC channels (contained into a single FIFO block)...
+			for(unsigned short block_index=(c*FIFO_BS); block_index<block_size; block_index+=(FIFO_BS*t_blocks))
+			{
+				//Even ADC indexes (0, 2, 4, 6 which corresponds to channels 1, 3, 5, 7) are on LSWords.
+				
+				//Peak:
+				//1) We will find the waveform's NEGATIVE peak value starting at PK_OFFSET.
+				GetLSWORD(ADC_OFFSET+PK_OFFSET+block_index, PK_INTERVAL, buffer, GetPPeak, &peak);
+				//2) We have to consider ADC calibration for the final value.
+				peak = peak*A+B;
+
+				//Baseline:
+				//1) 'acc' is the sumatorie of BASE_INTEGRAL ADC samples starting at BASE_OFFSET.
+				GetLSWORD(ADC_OFFSET+BASE_OFFSET+block_index, BASE_INTEGRAL, buffer, GetSum, &acc);
+				//2) 'baseline' is the mean value of the above sumatorie.
+				baseline = acc / BASE_INTEGRAL;
+				//3) We have to consider ADC calibration for the final value.
+				baseline = baseline*A+B;
+
+				//Amplitude: It's the Peak - Baseline.
+				amplitude = peak - (baseline);
+				if (fprintf(file, "%0.2f\t%0.2f\n", baseline, amplitude) > 0) counter++;
+
+				//reseting vars.
+				peak = -32768;
+				acc = 0;
+			}
+
+			fclose(file);
+			//next filename.
+			namevector+=(strlen(namevector)+1);
 	
-	return counter;
-}
-
-/**************************************************************************************************************************/
-
-double GetBaseline(signed char *buffer, unsigned int w)
-{
-	double acc=0;
-
-
-	for(unsigned int i=0; i<(BASEINT*_step_); i+=_step_)		
-		acc+=GetSample(buffer, &buffer[w+i+(BASEOFS*2)]);
-
-	//printf("b: %0.5f\r", acc/BASEINT);
-	return acc/BASEINT;
-}
-
-/**************************************************************************************************************************/
-
-signed int GetPPeak(signed char *buffer, unsigned int addr, unsigned char start, unsigned char end)
-{
-	signed int p_peak = -32768; //Minimum for a signed int.
-	signed int temp = 0;
-
-	for(unsigned char i=0; i<((end*_step_)-(start*_step_)); i+=_step_){	
+			//'counter' is the written baseline/amplitude pair count.
+			total += counter;
+			counter = 0;
+		}
+		btst = btst<<1;
 		
-		temp = GetSample(buffer, &buffer[addr+(start*_step_)+i]);
+		//Odd indexed ADC channel check.
+		if ((config & btst) == btst)
+		{
+			file = fopen(namevector, "a+t");
 
-		if (temp > p_peak)
-			p_peak = temp;
+			//Calculating/Saving baseline/amplitude from odd indexed ADC channels (contained into a single FIFO block)...
+			for(unsigned short block_index=(c*FIFO_BS); block_index<block_size; block_index+=(FIFO_BS*t_blocks))
+			{
+				//Odd ADC indexes (1, 3, 5, 7 which corresponds to channels 2, 4, 6, 8) are on MSWords.
+
+				//Peak:
+				//1) We will find the waveform's NEGATIVE peak value starting at PK_OFFSET.
+				GetMSWORD(ADC_OFFSET+PK_OFFSET+block_index, PK_INTERVAL, buffer, GetPPeak, &peak);
+				//2) We have to consider ADC calibration for the final value.
+				peak = peak*A+B;
+
+				//Baseline:
+				//1) 'acc' is the sumatorie of BASE_INTEGRAL ADC samples starting at BASE_OFFSET.
+				GetMSWORD(ADC_OFFSET+BASE_OFFSET+block_index, BASE_INTEGRAL, buffer, GetSum, &acc);
+				//2) 'baseline' is the mean value of the above sumatorie.
+				baseline = acc / BASE_INTEGRAL;
+				//3) We have to consider ADC calibration for the final value.
+				baseline = baseline*A+B;
+
+				//Amplitude: It's the Peak - Baseline.
+				amplitude = peak - (baseline);
+				if (fprintf(file, "%0.2f\t%0.2f\n", baseline, amplitude) > 0) counter++;
+
+				//reseting vars.
+				peak = -32768;
+				acc = 0;
+			}
+			fclose(file);
+			//next filename.
+			namevector+=(strlen(namevector)+1);
+
+			//'counter' is the written baseline/amplitude pair count.
+			total += counter;
+			counter = 0;
+		}
+		btst = btst<<1;
 	}
 
-	//printf("p: %0.5d\r", p_peak);
-	return p_peak;
+	//returns the total written baseline/amplitude pair count (lines).
+	return total;
 }
-
-signed int GetNPeak(signed char *buffer, unsigned int addr, unsigned char start, unsigned char end)
-{
-	signed int n_peak = 32767; //Maximum for a signed int.
-	signed int temp = 0;
-
-	for(unsigned char i=0; i<((end*_step_)-(start*_step_)); i+=_step_){	
-		
-		temp = GetSample(buffer, &buffer[addr+(start*_step_)+i]);
-
-		if (temp < n_peak)
-			n_peak = temp;
-	}
-
-	//printf("p: %0.5d\r", p_peak);
-	return n_peak;
-}
-
-double GetPInt(signed char *buffer, double base, unsigned int addr, unsigned char start, unsigned char end)
-{
-	double acc = 0;
-
-
-	for(unsigned char i=0; i<((end*_step_)-(start*_step_)); i+=_step_){	
-		
-		acc+= (GetSample(buffer, &buffer[addr+(start*_step_)+i]) - base);
-	}
-
-	printf("p: %0.7f\r", acc);
-
-	return acc;
-}
-
-
-//signed char *GetNPeak(signed char *buffer, signed char *addr, unsigned int size)
-//{
-//	signed char n_peak = 127; //Maximum for a signed char.
-//	signed char *n_peakptr = NULL;
-//	
-//	buffer = addr;
-//
-//	for(unsigned int i=0; i<size; i++)
-//		
-//		if (*buffer++ < n_peak){
-//			n_peak = *(buffer-1);
-//			n_peakptr = (buffer-1);
-//		}
-//
-//	return n_peakptr;
-//	
-//}
 
 /**************************************************************************************************************************/
 
-/**************************************************************************************************************************/
-
-//seems useless :(
-//cada coluna é um evento
-//colunas = quantidade de eventos ou waveforms
-//linhas = EVENT_SIZE
-//void SaveColumn(char *namevector, unsigned char t_channels, unsigned int block_size, signed char *buffer){
-//
-//	FILE *file;
-//
-//	printf("block_size: %u\n", block_size);
-//
-//	for(unsigned char c=0;c<t_channels;c++){
-//	
-//		//printf("\n--start %s\n\n", namevector);
-//		file = fopen(namevector, "a+t");
-//		
-//		//line
-//		for(unsigned int i=0;i<EVENT_SIZE;i++){
-//			//column
-//			for(unsigned int j=(c*EVENT_SIZE)+i;j<block_size;j+=(EVENT_SIZE*t_channels)){
-//		
-//				//Save those indexes, as a line. You've just saved all the first samples of all events(Waveforms)
-//				//printf("%u\t", j);
-//				fprintf(file, "%d\t", buffer[j]);
-//			}
-//			//printf("\n");
-//			fprintf(file, "\n");
-//		}
-//		//printf("\n--end %s\n\n", namevector);
-//		fclose(file);
-//		namevector+=(strlen(namevector)+1);
-//	}
-//}
