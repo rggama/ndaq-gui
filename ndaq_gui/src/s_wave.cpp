@@ -9,7 +9,8 @@ FILE	*file;
 
 /**************************************************************************************************************************/
 
-void SetFilename(unsigned char config, char *namevector, char *filename, char *suffix){
+void SetFilename(unsigned char config, char *namevector, char *filename, char *suffix)
+{
 	unsigned char btst = 0x01;
 	
 	for(unsigned char i=0;i<MAX_CHANNELS;i++){
@@ -74,9 +75,8 @@ void GetPPeak(unsigned short data, unsigned short offset, const void *r)
 //Cada linha possui o numero de amostras em um evento ou waveform.
 //Portanto, o numero de colunas é igual ao numero de amostras em uma waveform.
 //O total de linhas, ou waveforms, dependerá do tamanho do bloco de dados recebido. 
-unsigned short SaveWave(unsigned char t_blocks, unsigned char config, char *namevector, unsigned short block_size, unsigned char *buffer)
+unsigned short SaveWave(unsigned char t_blocks, unsigned char *chmap, char *namevector, unsigned short block_size, unsigned char *buffer)
 {
-	unsigned char btst = 0x01;
 	unsigned short counter=0;
 	unsigned short total=0;
 
@@ -88,7 +88,7 @@ unsigned short SaveWave(unsigned char t_blocks, unsigned char config, char *name
 	for(unsigned char c=0;c<t_blocks;c++)
 	{
 		//Even indexed ADC channel check.
-		if ((config & btst) == btst)
+		if (*chmap++ > 0)
 		{
 			file = fopen(namevector, "a+t");
 
@@ -111,11 +111,10 @@ unsigned short SaveWave(unsigned char t_blocks, unsigned char config, char *name
 			total += (counter/ADC_SAMPLES);
 			counter = 0;
 		}
-		btst = btst<<1;
 		
 		//Odd indexed ADC channel check.
-		if ((config & btst) == btst)
-		{
+		if (*chmap++ > 0)
+		{	
 			file = fopen(namevector, "a+t");
 			//Save ALL samples from the save enabled ADC channels (contained into a single FIFO block)...
 			for(unsigned short block_index=(c*FIFO_BS); block_index<block_size; block_index+=(FIFO_BS*t_blocks))
@@ -135,7 +134,6 @@ unsigned short SaveWave(unsigned char t_blocks, unsigned char config, char *name
 			total += (counter/ADC_SAMPLES);
 			counter = 0;
 		}
-		btst = btst<<1;
 	}
 
 	//returns the total written lines (waveforms).
@@ -143,9 +141,8 @@ unsigned short SaveWave(unsigned char t_blocks, unsigned char config, char *name
 }
 
 //Salva uma amostra de ADC, definida por CAL_SMP_OFFSET, contida em um bloco de dados.
-unsigned short SaveCal(unsigned char t_blocks, unsigned char config, char *namevector, unsigned short block_size, unsigned char *buffer)
+unsigned short SaveCal(unsigned char t_blocks, unsigned char *chmap, char *namevector, unsigned short block_size, unsigned char *buffer)
 {
-	unsigned char btst = 0x01;
 	unsigned short counter=0;
 	unsigned short total=0;
 
@@ -157,7 +154,7 @@ unsigned short SaveCal(unsigned char t_blocks, unsigned char config, char *namev
 	for(unsigned char c=0;c<t_blocks;c++)
 	{
 		//Even indexed ADC channel check.
-		if ((config & btst) == btst)
+		if (*chmap++ > 0)
 		{
 			file = fopen(namevector, "a+t");
 
@@ -179,10 +176,9 @@ unsigned short SaveCal(unsigned char t_blocks, unsigned char config, char *namev
 			total += counter;
 			counter = 0;
 		}
-		btst = btst<<1;
 		
 		//Odd indexed ADC channel check.
-		if ((config & btst) == btst)
+		if (*chmap++ > 0)
 		{
 			file = fopen(namevector, "a+t");
 			//Save ALL samples from the save enabled ADC channels (contained into a single FIFO block)...
@@ -202,7 +198,6 @@ unsigned short SaveCal(unsigned char t_blocks, unsigned char config, char *namev
 			total += counter;
 			counter = 0;
 		}
-		btst = btst<<1;
 	}
 
 	//returns the total written samples.
@@ -210,9 +205,8 @@ unsigned short SaveCal(unsigned char t_blocks, unsigned char config, char *namev
 }
 
 //
-unsigned short SaveNTable(unsigned char t_blocks, unsigned char config, char *namevector, unsigned short block_size, unsigned char *buffer)
+unsigned short SaveNTable(unsigned char t_blocks, unsigned char *chmap, char *namevector, unsigned short block_size, unsigned char *buffer)
 {
-	unsigned char btst = 0x01;
 	unsigned short counter=0;
 	unsigned short total=0;
 
@@ -229,7 +223,7 @@ unsigned short SaveNTable(unsigned char t_blocks, unsigned char config, char *na
 	for(unsigned char c=0;c<t_blocks;c++)
 	{
 		//Even indexed ADC channel check.
-		if ((config & btst) == btst)
+		if (*chmap++ > 0)
 		{
 			file = fopen(namevector, "a+t");
 
@@ -269,10 +263,9 @@ unsigned short SaveNTable(unsigned char t_blocks, unsigned char config, char *na
 			total += counter;
 			counter = 0;
 		}
-		btst = btst<<1;
 		
 		//Odd indexed ADC channel check.
-		if ((config & btst) == btst)
+		if (*chmap++ > 0)
 		{
 			file = fopen(namevector, "a+t");
 
@@ -311,7 +304,6 @@ unsigned short SaveNTable(unsigned char t_blocks, unsigned char config, char *na
 			total += counter;
 			counter = 0;
 		}
-		btst = btst<<1;
 	}
 
 	//returns the total written baseline/amplitude pair count (lines).
@@ -319,9 +311,8 @@ unsigned short SaveNTable(unsigned char t_blocks, unsigned char config, char *na
 }
 
 //
-unsigned short SavePTable(unsigned char t_blocks, unsigned char config, char *namevector, unsigned short block_size, unsigned char *buffer)
+unsigned short SavePTable(unsigned char t_blocks, unsigned char *chmap, char *namevector, unsigned short block_size, unsigned char *buffer)
 {
-	unsigned char btst = 0x01;
 	unsigned short counter=0;
 	unsigned short total=0;
 
@@ -338,7 +329,7 @@ unsigned short SavePTable(unsigned char t_blocks, unsigned char config, char *na
 	for(unsigned char c=0;c<t_blocks;c++)
 	{
 		//Even indexed ADC channel check.
-		if ((config & btst) == btst)
+		if (*chmap++ > 0)
 		{
 			file = fopen(namevector, "a+t");
 
@@ -378,10 +369,9 @@ unsigned short SavePTable(unsigned char t_blocks, unsigned char config, char *na
 			total += counter;
 			counter = 0;
 		}
-		btst = btst<<1;
 		
 		//Odd indexed ADC channel check.
-		if ((config & btst) == btst)
+		if (*chmap++ > 0)
 		{
 			file = fopen(namevector, "a+t");
 
@@ -420,7 +410,6 @@ unsigned short SavePTable(unsigned char t_blocks, unsigned char config, char *na
 			total += counter;
 			counter = 0;
 		}
-		btst = btst<<1;
 	}
 
 	//returns the total written baseline/amplitude pair count (lines).
@@ -429,3 +418,67 @@ unsigned short SavePTable(unsigned char t_blocks, unsigned char config, char *na
 
 /**************************************************************************************************************************/
 
+unsigned short SaveCounter(unsigned char t_blocks, unsigned char *chmap, char *namevector, unsigned short block_size, unsigned char *buffer)
+{
+	unsigned short counter=0;
+	unsigned short total=0;
+	
+	unsigned int timestamp=0;
+	unsigned int cntr=0;
+
+	//Converting 'block_size' from byte to SLOT_SIZE.
+	block_size = block_size/SLOT_SIZE;
+
+	//Block counter - Each block contains 2 ADC channels. But we'll have to check if both are enabled 
+	//for saving.
+
+	for (unsigned char c=0;c<t_blocks;c++)
+	{
+		//Even Counter channel check.
+		if (*chmap++ > 0)
+		{
+			file = fopen(namevector, "a+t");
+
+			//Getting timestamp/counter from a single FIFO block)...
+			for(unsigned short block_index=(c*FIFO_BS); block_index<block_size; block_index+=(FIFO_BS*t_blocks))
+			{
+				GetDWORD(TIMESTAMP_OFFSET+block_index, TIMESTAMP_SIZE, buffer, CopyData, &timestamp);
+				GetDWORD(ACOUNTER_OFFSET+block_index, COUNTER_SIZE, buffer, CopyData, &cntr);
+				if (fprintf(file, "%08u\t%08u\n", timestamp, cntr) > 0) counter++;
+			}
+			fclose(file);
+			//next filename.
+			namevector+=(strlen(namevector)+1);
+
+			//'counter' is the written timestamp/counter count.
+			total += counter;
+			counter = 0;
+		}
+
+		//Odd Counter channel check.
+		if (*chmap++ > 0)
+		{
+			file = fopen(namevector, "a+t");
+
+			//Getting timestamp/counter from a single FIFO block)...
+			for(unsigned short block_index=(c*FIFO_BS); block_index<block_size; block_index+=(FIFO_BS*t_blocks))
+			{
+				GetDWORD(TIMESTAMP_OFFSET+block_index, TIMESTAMP_SIZE, buffer, CopyData, &timestamp);
+				GetDWORD(BCOUNTER_OFFSET+block_index, COUNTER_SIZE, buffer, CopyData, &cntr);
+				if (fprintf(file, "%08u\t%08u\n", timestamp, cntr) > 0) counter++;
+			}
+			fclose(file);
+			//next filename.
+			namevector+=(strlen(namevector)+1);
+
+			//'counter' is the written timestamp/counter count.
+			total += counter;
+			counter = 0;
+		}
+	}
+
+	//returns the total written timestamp/counter count (lines).
+	return total;
+}
+
+/**************************************************************************************************************************/
