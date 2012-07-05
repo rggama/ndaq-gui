@@ -50,3 +50,4 @@ unsigned short BuildLSWORD(unsigned char *Buffer);
 unsigned short BuildMSWORD(unsigned char *Buffer);
 //
 unsigned int BuildDWORD(unsigned char *Buffer);
+

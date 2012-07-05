@@ -30,10 +30,12 @@
 Core::Core()
 {
 	//Initialize MPD
-	fmpd0 = new MPD(0); //Instanciando o objeto fmpd0 da classe MPD. Ou seja, tornar essa bendenga REAL ! 
+	fmpd0 = new MPD(0);
 	Run = false;
 	lc_config = 0;
 	acq_config = 0;
+	t_blocks = 0;
+	block_size = 65535;
 }
 
 Core::~Core()
@@ -66,9 +68,9 @@ void Core::Initialize()
 	fmpd0->SetLatency(1);
 
 	CheckClear();
-	WriteReg(0xAA, 0x55, 20);		//Resets Vme FPGA
-	WriteReg(0x80, 0x80, 21);		//Grant we'll have command responses.
-	WriteCore(0xAA,0x55, 22);		//Resets Core FPGA
+	WriteReg(0xAA, 0x55, 90);		//Resets Vme FPGA
+	WriteReg(0x80, 0x80, 91);		//Grant we'll have command responses.
+	WriteCore(0xAA,0x55, 92);		//Resets Core FPGA
 }
 
 void Core::SetChannels(unsigned char c_config)
@@ -76,7 +78,7 @@ void Core::SetChannels(unsigned char c_config)
 	lc_config = c_config;
 }
 
-void Core::SetTrigger(bool mode, bool slope, signed short th)
+void Core::SetTrigger(bool mode, bool slope, signed short th, unsigned char isel)
 {
 	unsigned char temp=0;
 
@@ -120,22 +122,159 @@ void Core::SetTrigger(bool mode, bool slope, signed short th)
 	if (mode == false)
 	{
 		acq_config = 0x80;
-		TestWCore(0x91, acq_config, 40);						//ACQ Register - Bit 7: 0 -> external trigger, 1 -> internal trigger
+		TestWCore(0x71, acq_config, 40);				//Bit 7: 0 -> external trigger, 1 -> internal trigger
+		TestWCore(0x70, isel, 41);						//Trigger Output Selector
 	}
 	//if trigger is external...	
 	else
 	{
 		acq_config = 0x00;
-		TestWCore(0x91, acq_config, 41);
+		TestWCore(0x71, acq_config, 42);
 	}
 }	
+
+void Core::MakeConfig(unsigned char cword, NDAQ_CONFIG *config)
+{
+	//ACQ Configuration (config->ac).
+	// B7  B6  B5  B4  B3  B2  B1  B0
+	//[ N | N | N | A | I | E | C | T ]
+	//-N : Not used.
+	//-A : ADC				-> (1)Enable, (0)Disable.
+	//-I : Internal Trigger	-> (1)Enable, (0)Disable.
+	//-E : External Trigger	-> (1)Enable, (0)Disable.
+	//-C : Counters			-> (1)Enable, (0)Disable.
+	//-T : Timebase			-> (1)Enable, (0)Disable.
+
+	//Core Databuilder FIFO Block Configuration (per fifo) (config->bc1,bc2,bc3,bc4).
+	// B7  B6  B5  B4  B3  B2  B1  B0
+	//[ N | N | c | C | t | A | T | H ]
+	//-N : Not used.
+	//-c : Odd Counter		-> (1)Enable, (0)Disable.
+	//-C : Even Counter		-> (1)Enable, (0)Disable.
+	//-t : TDC Odd+Even		-> (1)Enable, (0)Disable.
+	//-A : ADC Odd+Even		-> (1)Enable, (0)Disable.
+	//-T : Timebase			-> (1)Enable, (0)Disable.
+	//-H : Header			-> (1)Enable, (0)Disable.
+	
+	//VME Databuilder FIFO Transfer Configuration (config->vc).
+	// B7  B6  B5  B4  B3  B2  B1  B0
+	//[ N | N | N | N | 4 | 3 | 2 | 1 ]
+	//-N : Not used.
+	//-4 : FIFO 4 Transfer	-> (1)Enable, (0)Disable.
+	//-3 : FIFO 3 Transfer	-> (1)Enable, (0)Disable.
+	//-2 : FIFO 2 Transfer	-> (1)Enable, (0)Disable.
+	//-1 : FIFO 1 Transfer	-> (1)Enable, (0)Disable.
+
+	//reseting total blocks count
+	t_blocks = 0;
+
+	//Fixed by now.
+	config->ac = 0x1F;
+
+	//if channel 1 or channel 2 is enabled
+	if (((cword & 0x01) == 0x01) || ((cword & 0x02) == 0x02))
+	{		
+		//enable everything in a block for FIFO 1.
+		config->bc1 = 0x37;
+		//Turn ON FIFO 1 transfer on VME's databuilder.
+		config->vc = 0x01;
+		t_blocks++;
+	}
+	else
+	{
+		//enable none for FIFO 1.
+		config->bc1 = 0x00;
+		//Do NOT enable FIFO 1 transfer on VME's databuilder.
+		config->vc = 0x00;
+	}
+
+	//if channel 3 or channel 4 is enabled
+	if (((cword & 0x04) == 0x04) || ((cword & 0x08) == 0x08))
+	{
+		//enable everything in a block for FIFO 2.
+		config->bc2 = 0x37;
+		//Turn ON FIFO 2 transfer on VME's databuilder.
+		config->vc |= 0x02;
+		t_blocks++;
+	}
+	else
+	{	
+		//enable none for FIFO 2.
+		config->bc2 = 0x00;
+		//Do NOT enable FIFO 2 transfer on VME's databuilder.
+		config->vc |= 0x00;
+	}
+
+	//if channel 5 or channel 6 is enabled
+	if (((cword & 0x10) == 0x10) || ((cword & 0x20) == 0x20))
+	{	
+		//enable everything in a block for FIFO 3.
+		config->bc3 = 0x37;
+		//Turn ON FIFO 3 transfer on VME's databuilder.
+		config->vc |= 0x04;
+		t_blocks++;
+	}
+	else
+	{
+		//enable none for FIFO 3.
+		config->bc3 = 0x00;
+		//Do NOT enable FIFO 3 transfer on VME's databuilder.
+		config->vc |= 0x00;
+	}
+
+	//if channel 7 or channel 8 is enabled
+	if (((cword & 0x40) == 0x40) || ((cword & 0x80) == 0x80))
+	{
+		//enable everything in a block for FIFO 4.
+		config->bc4 = 0x37;
+		//Turn ON FIFO 4 transfer on VME's databuilder.
+		config->vc |= 0x08;
+		t_blocks++;
+	}
+	else
+	{
+		//enable none for FIFO 4.
+		config->bc4 = 0x00;
+		//Do NOT enable FIFO 4 transfer on VME's databuilder.
+		config->vc |= 0x00;
+	}
+
+	//VME Databuilder WORDS per FIFO (in SLOT Size).
+	//Fixed by now.
+	config->vs = 0x83; //Its the size (in SLOTs) of 'everything enabled' for each FIFO block;
+
+	#ifdef MAX_TP
+		block_size = BUFFER/(t_blocks*FIFO_BS*SLOT_SIZE);
+		block_size = block_size*(t_blocks*FIFO_BS*SLOT_SIZE);
+	#else
+		block_size = t_blocks*FIFO_BS*SLOT_SIZE;		//*SLOT_SIZE because it is in bytes.
+	#endif
+
+	//ZERO t_blocks WORKAROUND! 
+	if (t_blocks == 0 ) t_blocks = 1;
+
+	printf("Defined Block_Size: %u\n", block_size);
+}
+
+void Core::Config(NDAQ_CONFIG config)
+{
+	WriteReg(0x80, 0x80, 80);						//Grant we'll have command responses.
+
+	TestWCore(0x80, config.ac, 81);					//ACQ Configuration - Enabling Desired Peripherals.
+	TestWCore(0x41, config.bc1, 82);				//Core DataBuilder Configuration - FIFO 1.
+	TestWCore(0x42, config.bc2, 83);				//Core DataBuilder Configuration - FIFO 2.
+	TestWCore(0x43, config.bc3, 84);				//Core DataBuilder Configuration - FIFO 3.
+	TestWCore(0x44, config.bc4, 85);				//Core DataBuilder Configuration - FIFO 4.
+
+	TestWReg(0x83, config.vs, 86);					//Vme DataBuilder Block Size Configuration in WORDS less one (config).
+	TestWReg(0x81, config.vc, 87);					//Vme DataBuilder Configuration.
+}
 
 void Core::SetRun(bool state)
 {
 	unsigned char b_btst = 0x01;
 	unsigned char n_btst = 0x01;
 	unsigned char adc_pwdn = 0x0F;
-
 	
 	
 	//Start
@@ -143,59 +282,41 @@ void Core::SetRun(bool state)
 		WriteReg(0x80, 0x80, 0);					//Grant we'll have command responses.
 
 		//TestWCore(0x87, 0x00);					//ADC Power-up - Already Powered.
-
-		TestWReg(0x81, 0x00, 1);					//Vme DataBuilder config - Disable ALL Slots.
-
-		TestWCore(0x80, 0x00, 18);					//Core DataBuilder config - Disable ALL Slots.
-
-		TestWCore(0x91, (acq_config | 0x00), 2);	//Disable all ACQ enables.
-
-		TestWCore(0x81, 0x7F, 3);					//127(+1) samples per trigger (config).
 		
-		TestWCore(0x89, 0x01, 4);					//ACQ Reset Assert.
+		TestWCore(0x81, 0x7F, 1);					//127(+1) samples per trigger (config).
+		
+		TestWCore(0x89, 0x01, 2);					//ACQ Reset Assert.
 		Sleep(32);
-		TestWCore(0x89, 0x00, 5);					//ACQ Reset Deassert.
-		Sleep(32);
-
-		TestWCore(0x91, (acq_config | 0x1F), 6);	//Enables desired ACQ enables.
-
-		TestWCore(0x80, 0x6E, 7);					//Core DataBuilder Configuration.
+		TestWCore(0x89, 0x00, 3);					//ACQ Reset Deassert.
 		Sleep(32);
 
-		TestWCore(0x80, 0x6F, 8);					//DataBuilder Enable.
+		TestWCore(0x40, 0x01, 4);					//Core DataBuilder Enable.
 
 		/********************/
 
-		TestWReg(0x83, 0x83, 9);					//Vme DataBuilder Block Size in WORDS less one (config).
-
-		WriteReg(0x80, 0x00, 10);					//From here we won't have command responses anymore.
+		WriteReg(0x80, 0x00, 5);					//From here we won't have command responses anymore.
 		
 		CheckClear();								//Ensure Receive Buffer is clear.
 
-		WriteReg(0x82, 0x01, 11);					//Readout Reset Assert.
+		WriteReg(0x82, 0x01, 6);					//Readout Reset Assert.
 		Sleep(32);
-		WriteReg(0x82, 0x00, 12);					//Readout Reset Deassert.
-
-
-		WriteReg(0x81, 0x0F, 13);					//Vme DataBuilder config.
+		WriteReg(0x82, 0x00, 7);					//Readout Reset Deassert.
 		Sleep(32);
-		WriteReg(0x80, 0x01, 14);					//Vme Readout Enable (DataBuilder enable).
+
+		WriteReg(0x80, 0x01, 8);					//Vme Readout Enable (DataBuilder enable).
 
 		Run = true;
 
 	//Stop
 	}else{
-		WriteReg(0x80, 0x80, 15);					//Return grant to command responses.
+		WriteReg(0x80, 0x80, 9);					//Return grant to command responses.
 		Sleep(360);
 		CheckClear();								//Ensure Receive Buffer is clear.
 		
-		TestWCore(0x91, 0x00, 16);					//Disable all ACQ enables.
-
-		TestWCore(0x80, 0x00, 19);					//Disable all Core DataBuilder enables.
+		TestWCore(0x40, 0x00, 10);					//Core DataBuilder Disable.
 		
 		//TestWCore(0x87, 0x00);					//ADC Power-down.
 				
-		TestWReg(0x81, 0x00, 17);					//Vme DataBuilder config - Disable ALL Slots.
 		//TestWReg(0x80, 0x80);						//Vme Readout Disable (DataBuilder disable) - Already issued!
 		
 		Run = false;								//If it really stopped.		
@@ -229,10 +350,10 @@ unsigned int Core::Acq(unsigned char *Buffer)
 	
 	if (DEBUG) printf(" - Buffer Size: %u\n", Size);
 
-	if(Size > BLOCK_SIZE-1)
+	if(Size > (DWORD)block_size-1)
 	{
-		ReadSize = Size/BLOCK_SIZE;
-		ReadSize = ReadSize*BLOCK_SIZE;
+		ReadSize = Size/block_size;
+		ReadSize = ReadSize*block_size;
 
 		fmpd0->Read(Buffer, BytesRead, ReadSize);
 
@@ -403,28 +524,6 @@ unsigned char Core::WriteCore(unsigned char addr, unsigned char data, unsigned c
 	return 0;
 }
 
-//unsigned char Core::WriteCore(unsigned char addr, unsigned char data, unsigned char id)
-//{
-//	unsigned char	temp = 0;
-//	unsigned char	r = 0;
-//
-//	r = WriteSSPI(0xAA, id); R;				//write cmd
-//	temp = (addr & 0x0F);					//temp = ls nibble from addr.
-//	r = WriteSSPI((temp | 0xA0), id); R;	//addr ph1 - ls nibble
-//	temp = (addr >> 4);						//temp = ms nibble from addr.
-//	r = WriteSSPI((temp | 0x50), id); R;	//addr ph2 - ms nibble
-//	temp = (data & 0x0F);					//temp = ls nibble from addr.
-//	r = WriteSSPI((temp | 0xA0), id); R;	//data ph1 - ls nibble
-//	temp = (data >> 4);						//temp = ms nibble from addr.
-//	r = WriteSSPI((temp | 0x50), id); R;	//data ph2 - ms nibble
-//	
-//	r = WriteSSPI(0xFF, id); R;				//getting response.
-//	
-//	if (r == 0xEB) return 1;
-//	
-//	return 0;
-//}
-
 //
 unsigned char Core::ReadCore(unsigned char addr, unsigned char id)
 {
@@ -439,24 +538,6 @@ unsigned char Core::ReadCore(unsigned char addr, unsigned char id)
 
 	return r;
 }
-
-//
-//unsigned char Core::ReadCore(unsigned char addr, unsigned char id)
-//{
-//	unsigned char	temp = 0;
-//	unsigned char	r = 0;
-//
-//
-//	r = WriteSSPI(0x2A, id); R;				//read cmd
-//	temp = (addr & 0x0F);					//temp = ls nibble from addr.
-//	r = WriteSSPI((temp | 0xA0), id); R;	//addr ph1 - ls nibble
-//	temp = (addr >> 4);						//temp = ms nibble from addr.
-//	r = WriteSSPI((temp | 0x50), id); R;	//addr ph2 - ms nibble
-//
-//	r = WriteSSPI(0xFF, id); R;				//getting response and it is the register's value.
-//
-//	return r;
-//}
 
 /*****************************************************************************/
 /***************************** Test Functions ********************************/
@@ -519,90 +600,40 @@ void Core::TestCoreRW(void)
 /*****************************************************************************/
 /*****************************************************************************/
 
+unsigned char Core::MapChannels(unsigned char config)
+{
+	unsigned char btst = 0x01;
+	unsigned char t_channels = 0;
+	unsigned char *chmap = &chmap_vector[0];
+	unsigned char *chadd = &chadd_vector[0];
 
-unsigned char Core::MapChannels(unsigned char config, unsigned char *channel){
+	for(unsigned char i=0;i<MAX_CHANNELS;i++){
+		//if channel is enabled...
+		if ((config & btst) == btst)
+		{
+			*chmap++ = i+1;
+			t_channels++;
+		}
+		else
+		{
+			*chmap++ = 0;
+		}
+		//If a block is fully inactive, skip it.
+		if ((i>0) && (i%2!=0) && (*(chmap-1) == 0) && (*(chmap-2) == 0)) chmap-=2;
+		//Incremet bit test.
+		btst = btst<<1;
+	}
 	
-	unsigned char pos=0;
-
-		//Based on the Priority Encoded Circular Arbiter FSM
-		for(unsigned char i=0;i<8;i++) *channel++=0;
-		channel-=8;
-
-		if ((config & 0x01) == 0x01) goto pos1; else
-		if ((config & 0x02) == 0x02) goto pos2; else
-		if ((config & 0x04) == 0x04) goto pos3; else
-		if ((config & 0x08) == 0x08) goto pos4; else
-		if ((config & 0x10) == 0x10) goto pos5; else
-		if ((config & 0x20) == 0x20) goto pos6; else
-		if ((config & 0x40) == 0x40) goto pos7; else
-		if ((config & 0x80) == 0x80) goto pos8; else
-		return 0;
-
-	pos1:
-		channel[0] = ++pos;
-
-		if ((config & 0x02) == 0x02) goto pos2; else
-		if ((config & 0x04) == 0x04) goto pos3; else
-		if ((config & 0x08) == 0x08) goto pos4; else
-		if ((config & 0x10) == 0x10) goto pos5; else
-		if ((config & 0x20) == 0x20) goto pos6; else
-		if ((config & 0x40) == 0x40) goto pos7; else
-		if ((config & 0x80) == 0x80) goto pos8; else
-		return pos;
-
-	pos2:
-		channel[1] = ++pos;
-
-		if ((config & 0x04) == 0x04) goto pos3; else
-		if ((config & 0x08) == 0x08) goto pos4; else
-		if ((config & 0x10) == 0x10) goto pos5; else
-		if ((config & 0x20) == 0x20) goto pos6; else
-		if ((config & 0x40) == 0x40) goto pos7; else
-		if ((config & 0x80) == 0x80) goto pos8; else
-		return pos;
-
-	pos3:
-		channel[2] = ++pos;
-
-		if ((config & 0x08) == 0x08) goto pos4; else
-		if ((config & 0x10) == 0x10) goto pos5; else
-		if ((config & 0x20) == 0x20) goto pos6; else
-		if ((config & 0x40) == 0x40) goto pos7; else
-		if ((config & 0x80) == 0x80) goto pos8; else
-		return pos;
-
-	pos4:
-		channel[3] = ++pos;
-
-		if ((config & 0x10) == 0x10) goto pos5; else
-		if ((config & 0x20) == 0x20) goto pos6; else
-		if ((config & 0x40) == 0x40) goto pos7; else
-		if ((config & 0x80) == 0x80) goto pos8; else
-		return pos;
-
-	pos5:
-		channel[4] = ++pos;
-
-		if ((config & 0x20) == 0x20) goto pos6; else
-		if ((config & 0x40) == 0x40) goto pos7; else
-		if ((config & 0x80) == 0x80) goto pos8; else
-		return pos;
-
-	pos6:
-		channel[5] = ++pos;
-
-		if ((config & 0x40) == 0x40) goto pos7; else
-		if ((config & 0x80) == 0x80) goto pos8; else
-		return pos;
-
-	pos7:
-		channel[6] = ++pos;
-
-		if ((config & 0x80) == 0x80) goto pos8; else
-		return pos;
-
-	pos8:
-		channel[7] = ++pos;
+	chmap = &chmap_vector[0];
 	
-		return pos;
+	
+	for (unsigned char c=0;c<t_blocks;c++)
+	{
+		printf("Mapped Channels: %u->%u\n", c, *chmap++);	
+		printf("Mapped Channels: %u->%u\n", c, *chmap++);	
+	}
+	
+
+	return t_channels;
 }
+

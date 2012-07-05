@@ -15,8 +15,9 @@
 #include "a_graph.h"
 #include "a_laudo.h"
 #include "s_wave.h"
+#include "calibration.h"
 
-char filename[] = "Filename";
+;char filename[] = "Filename";
 char suffix[] = "Ch";
 char namevector[280];
 
@@ -32,8 +33,6 @@ TGComboBox *fComboFrom;
 Long_t totalEvents=0;
 unsigned long save_count=0;
 //int t_zero=0;
-UInt_t dcounter=0;
-UInt_t ldcounter=0;
 
 unsigned char graph_counter=1;
 bool running=false;
@@ -414,8 +413,6 @@ MainFrame::MainFrame(const TGWindow *p, UInt_t w, UInt_t h) : TGMainFrame(p, w, 
 	//setts->Connect("SettingsChanged()", "MainFrame", "this", "SettingsUpdate()");
 	//setts->SettingsChanged();
 	
-	SettingsUpdate();
-
 	//
 
 	fStatusBar->SetText("Connecting...",0);
@@ -437,6 +434,8 @@ MainFrame::MainFrame(const TGWindow *p, UInt_t w, UInt_t h) : TGMainFrame(p, w, 
 	}
 
 	FILEDEBUG("\nLast Execution: %u. **************************************************\n", r, 0);
+
+	SettingsUpdate();
 }
 
 // Destructor
@@ -483,32 +482,48 @@ void MainFrame::HandleMenu(Int_t id)
 
 void MainFrame::SettingsUpdate()
 {
-	unsigned char channel[8];
-	char cstr[9];
+	unsigned char *chmap_ptr;
+	unsigned char t_channels = 0;
+	char cstr[11];
 	char bstr[160]; //8*20
 	char *bptr = &bstr[0];
-
-	/**********************************************/
-	//Forcing Full Channel Enable for test purposes!
-	//setts->SetChanConfig(0xFF);
-	//setts->SetChanTotal(8);
-	/**********************************************/
+	NDAQ_CONFIG config;
 
 	printf("Channel Config: %u\n", setts->GetChanConfig());
 
-	//Mapping Channels
-	int on_channels = core->MapChannels(setts->GetChanConfig(), channel);
+	//Calculates t_blocks! MUST be the FIRST to be performed.
+	core->MakeConfig(setts->GetChanConfig(), &config);
+	core->Config(config);
+	
+	printf("Total Blocks: %u\n", core->GetTBlocks());
 
-	printf("On Channels %u\n", on_channels);
+	//Mapping Channels
+	t_channels = core->MapChannels(setts->GetChanConfig());
+
+	printf("Total Channels: %u\n", t_channels);
 
 	//Populating 'Graphic From' ComboBox
 	fComboGraph->RemoveAll();
   	fComboGraph->AddEntry("None", 0);
-	for(unsigned char i=0;i<8;i++)
-		if(channel[i] > 0){
-			sprintf(cstr, "From Ch%u", i+1);
-	 		fComboGraph->AddEntry(cstr, channel[i]);
+
+	chmap_ptr = core->GetChMap();
+	for(unsigned char i=0;i<core->GetTBlocks();i++)
+	{	
+		if (*chmap_ptr > 0)
+		{
+			sprintf(cstr, "From Ch%u", *chmap_ptr);
+			fComboGraph->AddEntry(cstr, *chmap_ptr);
 		}
+		chmap_ptr++;
+
+		if (*chmap_ptr > 0)
+		{
+			sprintf(cstr, "From Ch%u", *chmap_ptr);
+			fComboGraph->AddEntry(cstr, *chmap_ptr);
+		}
+		chmap_ptr++;
+	}
+
 	//fComboGraph->Select(1, kTRUE);
 	fComboGraph->Select(0, kTRUE); //Antes selecionava grafico 'From Ch1', agora seleciona 'None'
 	fComboGraph->MapSubwindows();
@@ -516,23 +531,32 @@ void MainFrame::SettingsUpdate()
 	
 	//Populating 'Trigger From' ComboBox
 	fComboFrom->RemoveAll();
-	for(unsigned char i=0;i<8;i++)
-		if(channel[i] > 0){
-			sprintf(cstr, "Ch%u", i+1);
-	 		fComboFrom->AddEntry(cstr, i);
-		}
 
-	for(unsigned char i=0;i<8;i++)
-		if(channel[i] > 0){
-			fComboFrom->Select(i, kTRUE);
-			break;
+	chmap_ptr = core->GetChMap();
+	for(unsigned char i=0;i<core->GetTBlocks();i++)
+	{	
+		if (*chmap_ptr > 0)
+		{
+			sprintf(cstr, "Ch%u", *chmap_ptr);
+			fComboFrom->AddEntry(cstr, *chmap_ptr-1);
 		}
+		chmap_ptr++;
+
+		if (*chmap_ptr > 0)
+		{
+			sprintf(cstr, "Ch%u", *chmap_ptr);
+			fComboFrom->AddEntry(cstr, *chmap_ptr-1);
+		}
+		chmap_ptr++;
+	}
+
+	fComboFrom->Select(*core->GetChMap()-1, kTRUE);
 	fComboFrom->MapSubwindows();
 	fComboFrom->Layout();
 
 	//Setting Filenames
 	SetFilename(setts->GetChanConfig(), bstr, filename, suffix);
-	for(unsigned char i=0;i<on_channels;i++)
+	for(unsigned char i=0;i<t_channels;i++)
 	{
 		printf("%s\n", bptr);
 		bptr+=(strlen(bptr)+1);
@@ -605,11 +629,11 @@ void MainFrame::FButtonRunMPD1()
 		switch(fComboTri->GetSelected())
 		{	
 			//External
-			case 0: core->SetTrigger(true, fbslope, (signed short) th); break;
+			case 0: core->SetTrigger(true, fbslope, (signed short) th, fComboFrom->GetSelected()); break;
 			//Internal			
-			case 1: core->SetTrigger(false, fbslope, (signed short) th); break;
+			case 1: core->SetTrigger(false, fbslope, (signed short) th, fComboFrom->GetSelected()); break;
 			//Frequency			
-			case 2: core->SetTrigger(false, fbslope, (signed short) th); break;
+			case 2: core->SetTrigger(false, fbslope, (signed short) th, fComboFrom->GetSelected()); break;
 		}
 		
 		//Configure Channels
@@ -636,9 +660,9 @@ bool MainFrame::Update(){
 	unsigned short block_size=0;
 	unsigned short event_count=0;
 
-	unsigned int	header=0;
-	unsigned int	timestamp=0;
-	unsigned int	cntr=0;
+	unsigned int header=0;
+	unsigned int timestamp=0;
+	unsigned int cntr=0;
 
 	signed int x[EVENT_SIZE];
 	signed int y[EVENT_SIZE];
@@ -646,16 +670,21 @@ bool MainFrame::Update(){
 	unsigned int residue=0;
 	int itime=0;
 	int stime=0;
+	
+	signed short peak = 0;
+	signed int acc = 0;
+	double baseline = 0;
+	double amplitude = 0;
 
 	/********************************************************************************************/
 
 	if (core->GetRun() && running == true) block_size = core->Acq(Buffer);
 	
-	if ( block_size > BLOCK_SIZE-1 ) 
+	if ( block_size > (core->GetBS()-1) ) 
 	{	
 		if (DEBUG) printf(" - Read Size: %u\n\n", block_size);
 
-		GetDWORD(0, 1, Buffer, CopyData, &header);
+		GetDWORD(HEADER_OFFSET, HEADER_SIZE, Buffer, CopyData, &header);
 
 		if (header != 0xAA55AA55)
 		{
@@ -664,7 +693,7 @@ bool MainFrame::Update(){
 			return true;			//descarta este bloco de dados.
 		}
 
-		GetDWORD(1, 1, Buffer, CopyData, &timestamp);
+		GetDWORD(TIMESTAMP_OFFSET, TIMESTAMP_SIZE, Buffer, CopyData, &timestamp);
 		itime = (int) timestamp*0.1;		
 
 		//ZERO SEEK!
@@ -683,6 +712,7 @@ bool MainFrame::Update(){
 			bscounter=0;
 		}
 		
+		//Time
 		fNumTime->SetIntNumber(itime);
 		//printf("itime: %u\n\n", itime);
 
@@ -722,7 +752,8 @@ bool MainFrame::Update(){
 		}
 
 		/********************************************************************************************/
-		
+		/*
+		// Counter Debug
 		for (unsigned short i=0; i<528; i+=132)
 		{
 			//Timestamp
@@ -741,38 +772,91 @@ bool MainFrame::Update(){
 
 		printf("*******************************\n");
 		printf("*******************************\n");
-
+		*/
 		/****************************************************************************************/
 
 		event_count = block_size/(EVENT_SIZE*_step_);
 
 		totalEvents=totalEvents+event_count;
 		
+		//Events
 		fNumEvents->SetIntNumber(totalEvents);
-
+		
+		//Rx Rate *** PROBABLY WRONG ! ! ! CHECK LATER ! ! ! ***
 		if (itime > 0)
-			fNumRxRate->SetNumber((Double_t) (((totalEvents*(EVENT_SIZE*_step_))/itime)/1024) );
-
-		//fNumCounter->SetIntNumber(dcounter);
-
+			//fNumRxRate->SetNumber((Double_t) ((block_size/_D(TIMESTAMP_)/1024) );
+		
+		//Graphic
 		if(fComboGraph->GetSelected() > 0){
 					
 			/****************************************/
 			for(unsigned char i=0;i<128;i++) x[i] = i;
 			/****************************************/
+			
+			unsigned char *ChMap = core->GetChMap();
 
-			switch(fComboGraph->GetSelected()){
-			//posicao
-				case 1: GetLSWORD(ADC_OFFSET+(0*FIFO_BS), ADC_SIZE, Buffer, GraphData, y); break;
-				case 2: GetMSWORD(ADC_OFFSET+(0*FIFO_BS), ADC_SIZE, Buffer, GraphData, y); break;
-				case 3: GetLSWORD(ADC_OFFSET+(1*FIFO_BS), ADC_SIZE, Buffer, GraphData, y); break;
-				case 4: GetMSWORD(ADC_OFFSET+(1*FIFO_BS), ADC_SIZE, Buffer, GraphData, y); break;
-				case 5: GetLSWORD(ADC_OFFSET+(2*FIFO_BS), ADC_SIZE, Buffer, GraphData, y); break;
-				case 6: GetMSWORD(ADC_OFFSET+(2*FIFO_BS), ADC_SIZE, Buffer, GraphData, y); break;
-				case 7: GetLSWORD(ADC_OFFSET+(3*FIFO_BS), ADC_SIZE, Buffer, GraphData, y); break;
-				case 8: GetMSWORD(ADC_OFFSET+(3*FIFO_BS), ADC_SIZE, Buffer, GraphData, y); break;
+			for (unsigned char c=0;c<core->GetTBlocks();c++)
+			{
+				//Even
+				if (*ChMap++ == fComboGraph->GetSelected())
+				{
+					//Waveform
+					GetLSWORD(ADC_OFFSET+(c*FIFO_BS), ADC_SIZE, Buffer, GraphData, y);
+					
+					//Peak:
+					//1) We will find the waveform's NEGATIVE or POSITIVE peak value starting at PK_OFFSET.
+					if (fbslope == false)
+					{	
+						peak = 32767;
+						GetLSWORD(ADC_OFFSET+PK_OFFSET+(c*FIFO_BS), PK_INTERVAL, Buffer, GetNPeak, &peak);
+					}
+					else
+					{
+						peak = -32768;
+						GetLSWORD(ADC_OFFSET+PK_OFFSET+(c*FIFO_BS), PK_INTERVAL, Buffer, GetPPeak, &peak);
+					}
+					//2) We have to consider ADC calibration for the final value.
+					peak = peak*A+B;
+					
+					//Baseline:
+					//1) 'acc' is the sumatorie of BASE_INTEGRAL ADC samples starting at BASE_OFFSET.
+					GetLSWORD(ADC_OFFSET+BASE_OFFSET+(c*FIFO_BS), BASE_INTEGRAL, Buffer, GetSum, &acc);
+					//2) 'baseline' is the mean value of the above sumatorie.
+					baseline = acc / BASE_INTEGRAL;
+					//3) We have to consider ADC calibration for the final value.
+					baseline = baseline*A+B;
+				}
+
+				//Odd
+				if (*ChMap++ == fComboGraph->GetSelected())
+				{
+					GetMSWORD(ADC_OFFSET+(c*FIFO_BS), ADC_SIZE, Buffer, GraphData, y);
+
+					//Peak:
+					//1) We will find the waveform's NEGATIVE or POSITIVE peak value starting at PK_OFFSET.
+					if (fbslope == false)
+					{	
+						peak = 32767;
+						GetMSWORD(ADC_OFFSET+PK_OFFSET+(c*FIFO_BS), PK_INTERVAL, Buffer, GetNPeak, &peak);
+					}
+					else
+					{
+						peak = -32768;
+						GetMSWORD(ADC_OFFSET+PK_OFFSET+(c*FIFO_BS), PK_INTERVAL, Buffer, GetPPeak, &peak);
+					}
+					//2) We have to consider ADC calibration for the final value.
+					peak = peak*A+B;
+					
+					//Baseline:
+					//1) 'acc' is the sumatorie of BASE_INTEGRAL ADC samples starting at BASE_OFFSET.
+					GetMSWORD(ADC_OFFSET+BASE_OFFSET+(c*FIFO_BS), BASE_INTEGRAL, Buffer, GetSum, &acc);
+					//2) 'baseline' is the mean value of the above sumatorie.
+					baseline = acc / BASE_INTEGRAL;
+					//3) We have to consider ADC calibration for the final value.
+					baseline = baseline*A+B;
+				}
 			}
-							
+			/*
 			//Initialize graph1
 			fEcanvas1->GetCanvas()->cd();
 			//if(graph1) delete graph1;
@@ -785,30 +869,57 @@ bool MainFrame::Update(){
 			//graph1->SetMarkerColor(kRed);
 			graph1->SetLineColor(kRed);
 			graph1->GetYaxis()->SetRangeUser(-600, 600);
-			graph1->GetXaxis()->SetRangeUser(0, (EVENT_SIZE/**TIMEBIN*/));				
+			graph1->GetXaxis()->SetRangeUser(0, (EVENT_SIZE)); //*TIMEBIN				
 			graph1->Draw("AL");			
 
 			fEcanvas1->GetCanvas()->Update();
+			*/
 		}
 		
 		//MEASUREMENTS
-		/*
-		if(1){
-
-			//fNumBaseline->SetNumber((base = get_baseline(yCAL)));
-			//fNumAmplitude->SetNumber(get_amplitude(EVENT_SIZE,base,yCAL));
+		if(1)
+		{
+			//Baseline
+			fNumBaseline->SetNumber(baseline);
+			
+			//Amplitude: It's the Peak - Baseline.
+			fNumAmplitude->SetNumber(peak - (baseline));
+			
+			//Charge
 			//fNumCharge->SetNumber(get_charge(EVENT_SIZE,base,yCAL));
+			
+			//Counter
+			unsigned char *ChMap = core->GetChMap();
+
+			for (unsigned char c=0;c<core->GetTBlocks();c++)
+			{
+				//Even
+				if (*ChMap++ == fComboGraph->GetSelected())
+				{
+					//Even Counter
+					GetDWORD(ACOUNTER_OFFSET+(c*FIFO_BS), COUNTER_SIZE, Buffer, CopyData, &cntr);
+				}
+
+				//Odd
+				if (*ChMap++ == fComboGraph->GetSelected())
+				{
+					GetDWORD(BCOUNTER_OFFSET+(c*FIFO_BS), COUNTER_SIZE, Buffer, CopyData, &cntr);
+				}
+			}
+
+			fNumCounter->SetIntNumber(cntr);
 		}
-		*/
+		
 
 		//SAVE CAL
 		if(fScal->GetState() != kButtonUp){
-			save_count+= SaveCal(4, setts->GetChanConfig(), namevector, block_size, Buffer);
+			//save_count+= SaveCal(core->GetTBlocks(), core->GetChMap(), namevector, block_size, Buffer);
+			save_count+= SaveCounter(core->GetTBlocks(), core->GetChMap(), namevector, block_size, Buffer);
 		}
 
 		//SAVE WAVE
 		if(fSave->GetState() != kButtonUp){
-			save_count += SaveWave(4, setts->GetChanConfig(), namevector, block_size, Buffer);
+			save_count += SaveWave(core->GetTBlocks(), core->GetChMap(), namevector, block_size, Buffer);
 		}
 
 		//SAVE TABLE
@@ -817,9 +928,9 @@ bool MainFrame::Update(){
 			//If SAVE 3 seconds test is defined, Save Table should do NOTHING.
 			#ifndef SAVE3
 				if (fbslope == false)			
-					save_count+= SaveNTable(4, setts->GetChanConfig(), namevector, block_size, Buffer);
+					save_count+= SaveNTable(core->GetTBlocks(), core->GetChMap(), namevector, block_size, Buffer);
 				else
-					save_count+= SavePTable(4, setts->GetChanConfig(), namevector, block_size, Buffer);
+					save_count+= SavePTable(core->GetTBlocks(), core->GetChMap(), namevector, block_size, Buffer);
 			#endif
 		}
 

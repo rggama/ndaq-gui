@@ -17,10 +17,13 @@ void GetNPeak(unsigned short data, unsigned short offset, const void *r);
 void GetPPeak(unsigned short data, unsigned short offset, const void *r);
 
 //
-unsigned short SaveWave(unsigned char t_blocks, unsigned char config, char *namevector, unsigned short block_size, unsigned char *buffer);
+unsigned short SaveWave(unsigned char t_blocks, unsigned char *chmap, char *namevector, unsigned short block_size, unsigned char *buffer);
 //
-unsigned short SaveCal(unsigned char t_blocks, unsigned char config, char *namevector, unsigned short block_size, unsigned char *buffer);
+unsigned short SaveCal(unsigned char t_blocks, unsigned char *chmap, char *namevector, unsigned short block_size, unsigned char *buffer);
 //
-unsigned short SaveNTable(unsigned char t_blocks, unsigned char config, char *namevector, unsigned short block_size, unsigned char *buffer);
+unsigned short SaveNTable(unsigned char t_blocks, unsigned char *chmap, char *namevector, unsigned short block_size, unsigned char *buffer);
 //
-unsigned short SavePTable(unsigned char t_blocks, unsigned char config, char *namevector, unsigned short block_size, unsigned char *buffer);
+unsigned short SavePTable(unsigned char t_blocks, unsigned char *chmap, char *namevector, unsigned short block_size, unsigned char *buffer);
+
+//
+unsigned short SaveCounter(unsigned char t_blocks, unsigned char *chmap, char *namevector, unsigned short block_size, unsigned char *buffer);
