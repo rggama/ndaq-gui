@@ -27,6 +27,7 @@ char namevector[280];
 // *** WORK PROPERLY. WHEN THESE VARS ARE DECLARED IN THE CLASS STATEMENT, THE REFERED METHOD
 // *** IS NOT ABLE TO ACCESS THEM. W H Y !?!?!?!?!?!?!?!?!?!?!?!?!?!?!?!?!?!?!?!?!?!?!?!?!?!?!?!
 TGComboBox *fComboGraph;
+TGComboBox *fComboMeas;
 TGComboBox *fComboFrom;
 
 //unsigned long int totalEvents=0;
@@ -48,6 +49,10 @@ MainFrame::MainFrame(const TGWindow *p, UInt_t w, UInt_t h) : TGMainFrame(p, w, 
 	fbslope = true;
 	saveWave = false;
 	saveTable = false;
+	timeP = 0;
+	timeA = 0;
+	timer = 0;
+	sIntervalEn = false;
 
 	SetCleanup(kDeepCleanup);
 	
@@ -149,6 +154,15 @@ MainFrame::MainFrame(const TGWindow *p, UInt_t w, UInt_t h) : TGMainFrame(p, w, 
 
 	// 2 column, n rows
 	fgroupMeas->SetLayoutManager(new TGMatrixLayout(fgroupMeas, 0, 2, 10));
+
+	// Create ComboBox Measurements
+	fgroupMeas->AddFrame(new TGLabel(fgroupMeas, new TGHotString("Display:")));	
+
+	fComboMeas = new TGComboBox(fgroupMeas,-1,kHorizontalFrame | kSunkenFrame | kDoubleBorder | kOwnBackground);
+  	fComboMeas->AddEntry("None", 0);
+	fComboMeas->Select(0, kTRUE);
+  	fgroupMeas->AddFrame(fComboMeas, new TGLayoutHints(kLHintsLeft | kLHintsTop ,0,0,0,0));
+	fComboMeas->MoveResize(10,24,100,20);
 
 	//Create Events Number Display
 	fgroupMeas->AddFrame(new TGLabel(fgroupMeas, new TGHotString("Events:")));	
@@ -270,7 +284,7 @@ MainFrame::MainFrame(const TGWindow *p, UInt_t w, UInt_t h) : TGMainFrame(p, w, 
   	fComboTri = new TGComboBox(fgroupTrigg,-1,kHorizontalFrame | kSunkenFrame | kDoubleBorder | kOwnBackground);
   	fComboTri->AddEntry("External", 0);
   	fComboTri->AddEntry("Internal", 1);
-  	fComboTri->AddEntry("Frequency", 2);
+  	//fComboTri->AddEntry("Frequency", 2);
   	fComboTri->Select(0, kTRUE);
   	fComboTri->Resize(100,20);
 	fComboTri->Connect("Selected(Int_t)","MainFrame",this,"HandleComboTri()");
@@ -336,6 +350,12 @@ MainFrame::MainFrame(const TGWindow *p, UInt_t w, UInt_t h) : TGMainFrame(p, w, 
 						TGNumberFormat::kNEAAnyNumber,TGNumberFormat::kNELLimitMinMax,0,10000000);
   	fgroupCtrl->AddFrame(fTime);
 
+	//Create Time NumberEntry
+	fgroupCtrl->AddFrame(new TGLabel(fgroupCtrl, new TGHotString("Interval (s):")));	
+	fInterval = new TGNumberEntry(fgroupCtrl,0,8,-1,TGNumberFormat::kNESInteger,
+						TGNumberFormat::kNEAAnyNumber,TGNumberFormat::kNELLimitMinMax,0,10000000);
+  	fgroupCtrl->AddFrame(fInterval);
+
 	//Run Button  
 	fgroupCtrl->AddFrame(new TGLabel(fgroupCtrl, new TGHotString("Acquisition:")));
   	fButtonRunMPD1 = new TGTextButton(fgroupCtrl,"Run");
@@ -367,6 +387,13 @@ MainFrame::MainFrame(const TGWindow *p, UInt_t w, UInt_t h) : TGMainFrame(p, w, 
 	fTable->Connect("Clicked()", "MainFrame", this, "HandleCheckBoxes()");
   	fgroupCtrl->AddFrame(fTable);
 	
+	//Save Table
+	fgroupCtrl->AddFrame(new TGLabel(fgroupCtrl, new TGHotString("Save Counter:")));
+	fCounter = new TGCheckButton(fgroupCtrl);
+	fCounter->SetState(kButtonUp);
+	fCounter->Connect("Clicked()", "MainFrame", this, "HandleCheckBoxes()");
+  	fgroupCtrl->AddFrame(fCounter);
+
 	fRGroupFrame->AddFrame(fgroupCtrl, new TGLayoutHints(kLHintsLeft | kLHintsExpandX | 
 										kLHintsExpandY | kLHintsTop,10,10,0,10));
 
@@ -502,9 +529,11 @@ void MainFrame::SettingsUpdate()
 
 	printf("Total Channels: %u\n", t_channels);
 
-	//Populating 'Graphic From' ComboBox
+	//Populating 'Graphic From' and 'Measurements' ComboBox
 	fComboGraph->RemoveAll();
+	fComboMeas->RemoveAll();
   	fComboGraph->AddEntry("None", 0);
+  	fComboMeas->AddEntry("None", 0);
 
 	chmap_ptr = core->GetChMap();
 	for(unsigned char i=0;i<core->GetTBlocks();i++)
@@ -513,6 +542,7 @@ void MainFrame::SettingsUpdate()
 		{
 			sprintf(cstr, "From Ch%u", *chmap_ptr);
 			fComboGraph->AddEntry(cstr, *chmap_ptr);
+			fComboMeas->AddEntry(cstr, *chmap_ptr);
 		}
 		chmap_ptr++;
 
@@ -520,6 +550,7 @@ void MainFrame::SettingsUpdate()
 		{
 			sprintf(cstr, "From Ch%u", *chmap_ptr);
 			fComboGraph->AddEntry(cstr, *chmap_ptr);
+			fComboMeas->AddEntry(cstr, *chmap_ptr);
 		}
 		chmap_ptr++;
 	}
@@ -528,6 +559,9 @@ void MainFrame::SettingsUpdate()
 	fComboGraph->Select(0, kTRUE); //Antes selecionava grafico 'From Ch1', agora seleciona 'None'
 	fComboGraph->MapSubwindows();
 	fComboGraph->Layout();
+	fComboMeas->Select(0, kTRUE); //Antes selecionava grafico 'From Ch1', agora seleciona 'None'
+	fComboMeas->MapSubwindows();
+	fComboMeas->Layout();
 	
 	//Populating 'Trigger From' ComboBox
 	fComboFrom->RemoveAll();
@@ -624,7 +658,8 @@ void MainFrame::FButtonRunMPD1()
 		fNumEvents->SetIntNumber(totalEvents);
 		fButtonRunMPD1->SetText("Stop");
 	
-		th = fNumTreshold->GetNumber()*0.3859f+1.576f;
+		//th = fNumTreshold->GetNumber()*0.3859f+1.576f;
+		th = fNumTreshold->GetNumber();
 		
 		switch(fComboTri->GetSelected())
 		{	
@@ -644,6 +679,7 @@ void MainFrame::FButtonRunMPD1()
 		//t_zero = (int)time(NULL);
 		running = true;
 		zero_seek = true;
+		timeP = timeA = timer = 0;
 	}
 	
 }
@@ -668,9 +704,11 @@ bool MainFrame::Update(){
 	signed int y[EVENT_SIZE];
 
 	unsigned int residue=0;
-	int itime=0;
-	int stime=0;
+	unsigned int itime=0;
+	unsigned int stime=0;
 	
+	unsigned int ltimer=0;
+
 	signed short peak = 0;
 	signed int acc = 0;
 	double baseline = 0;
@@ -694,7 +732,22 @@ bool MainFrame::Update(){
 		}
 
 		GetDWORD(TIMESTAMP_OFFSET, TIMESTAMP_SIZE, Buffer, CopyData, &timestamp);
-		itime = (int) timestamp*0.1;		
+		itime = (unsigned int) timestamp*0.1;		
+
+		//Time Dif stuff
+		timeP = timeA;
+		timeA = timestamp;
+		timer += (timeA - timeP);
+		ltimer = (unsigned int) timer*0.1;
+		//printf("Time Dif: %08u\n", ltimer);
+		if ((fInterval->GetIntNumber() > 0) && (ltimer == fInterval->GetIntNumber()))
+		{
+			printf("Timer : %08u\n", ltimer);
+			timer = 0;
+			sIntervalEn = true;
+		}
+		if (fInterval->GetIntNumber() == 0) timer = 0;
+
 
 		//ZERO SEEK!
 		if (zero_seek == true)
@@ -719,7 +772,8 @@ bool MainFrame::Update(){
 		/********************************************************************************************/
 
 		//SAVE TIME CHECK
-		if((fScal->GetState() != kButtonUp) || (fSave->GetState() != kButtonUp) || (fTable->GetState() != kButtonUp)){
+		if((fScal->GetState() != kButtonUp) || (fSave->GetState() != kButtonUp) || (fTable->GetState() != kButtonUp)
+			|| (fCounter->GetState() != kButtonUp)){
 			if(saving==false)
 			{
 				saving=true;
@@ -739,7 +793,7 @@ bool MainFrame::Update(){
 		#endif
 
 		//Test Save Count Limit
-		if ((stime >= fTime->GetIntNumber()) && (fTime->GetIntNumber() > 0) && (saving == true)){
+		if ((stime >= (unsigned int) fTime->GetIntNumber()) && (fTime->GetIntNumber() > 0) && (saving == true)){
 			start_time = 0;
 			saving=false;
 			printf("\ntime: %0.6u\n", stime);
@@ -775,7 +829,7 @@ bool MainFrame::Update(){
 		*/
 		/****************************************************************************************/
 
-		event_count = block_size/(EVENT_SIZE*_step_);
+		event_count = block_size/(FIFO_BS*core->GetTBlocks());
 
 		totalEvents=totalEvents+event_count;
 		
@@ -801,8 +855,46 @@ bool MainFrame::Update(){
 				if (*ChMap++ == fComboGraph->GetSelected())
 				{
 					//Waveform
-					GetLSWORD(ADC_OFFSET+(c*FIFO_BS), ADC_SIZE, Buffer, GraphData, y);
-					
+					GetLSWORD(ADC_OFFSET+(c*FIFO_BS), ADC_SIZE, Buffer, GraphData, y);					
+				}
+
+				//Odd
+				if (*ChMap++ == fComboGraph->GetSelected())
+				{
+					GetMSWORD(ADC_OFFSET+(c*FIFO_BS), ADC_SIZE, Buffer, GraphData, y);
+				}
+			}
+			
+			//Initialize graph1
+			//fEcanvas1->GetCanvas()->cd();
+			//if(graph1) delete graph1;
+			
+			graph1 = new TGraph(EVENT_SIZE, x, y);
+			graph1->SetTitle("Event");
+			graph1->SetEditable(kFALSE);
+			//graph1->SetMarkerStyle(kFullDotMedium);
+			//graph1->SetMarkerSize(1);
+			//graph1->SetMarkerColor(kRed);
+			graph1->SetLineColor(kRed);
+			graph1->GetYaxis()->SetRangeUser(-600, 600);
+			graph1->GetXaxis()->SetRangeUser(0, (EVENT_SIZE)); //*TIMEBIN				
+			graph1->Draw("AL");			
+
+			fEcanvas1->GetCanvas()->Update();
+			
+		}
+		
+		//MEASUREMENTS
+		if(fComboMeas->GetSelected() > 0)
+		{
+			//Getting Information...
+			unsigned char *ChMap = core->GetChMap();
+
+			for (unsigned char c=0;c<core->GetTBlocks();c++)
+			{
+				//Even
+				if (*ChMap++ == fComboMeas->GetSelected())
+				{
 					//Peak:
 					//1) We will find the waveform's NEGATIVE or POSITIVE peak value starting at PK_OFFSET.
 					if (fbslope == false)
@@ -825,13 +917,14 @@ bool MainFrame::Update(){
 					baseline = acc / BASE_INTEGRAL;
 					//3) We have to consider ADC calibration for the final value.
 					baseline = baseline*A+B;
+
+					//Even Counter
+					GetDWORD(ACOUNTER_OFFSET+(c*FIFO_BS), COUNTER_SIZE, Buffer, CopyData, &cntr);
 				}
 
 				//Odd
-				if (*ChMap++ == fComboGraph->GetSelected())
+				if (*ChMap++ == fComboMeas->GetSelected())
 				{
-					GetMSWORD(ADC_OFFSET+(c*FIFO_BS), ADC_SIZE, Buffer, GraphData, y);
-
 					//Peak:
 					//1) We will find the waveform's NEGATIVE or POSITIVE peak value starting at PK_OFFSET.
 					if (fbslope == false)
@@ -854,31 +947,12 @@ bool MainFrame::Update(){
 					baseline = acc / BASE_INTEGRAL;
 					//3) We have to consider ADC calibration for the final value.
 					baseline = baseline*A+B;
+					
+					//Event Counter
+					GetDWORD(BCOUNTER_OFFSET+(c*FIFO_BS), COUNTER_SIZE, Buffer, CopyData, &cntr);
 				}
 			}
-			/*
-			//Initialize graph1
-			fEcanvas1->GetCanvas()->cd();
-			//if(graph1) delete graph1;
-			
-			graph1 = new TGraph(EVENT_SIZE, x, y);
-			graph1->SetTitle("Event");
-			graph1->SetEditable(kFALSE);
-			//graph1->SetMarkerStyle(kFullDotMedium);
-			//graph1->SetMarkerSize(1);
-			//graph1->SetMarkerColor(kRed);
-			graph1->SetLineColor(kRed);
-			graph1->GetYaxis()->SetRangeUser(-600, 600);
-			graph1->GetXaxis()->SetRangeUser(0, (EVENT_SIZE)); //*TIMEBIN				
-			graph1->Draw("AL");			
 
-			fEcanvas1->GetCanvas()->Update();
-			*/
-		}
-		
-		//MEASUREMENTS
-		if(1)
-		{
 			//Baseline
 			fNumBaseline->SetNumber(baseline);
 			
@@ -889,41 +963,24 @@ bool MainFrame::Update(){
 			//fNumCharge->SetNumber(get_charge(EVENT_SIZE,base,yCAL));
 			
 			//Counter
-			unsigned char *ChMap = core->GetChMap();
-
-			for (unsigned char c=0;c<core->GetTBlocks();c++)
-			{
-				//Even
-				if (*ChMap++ == fComboGraph->GetSelected())
-				{
-					//Even Counter
-					GetDWORD(ACOUNTER_OFFSET+(c*FIFO_BS), COUNTER_SIZE, Buffer, CopyData, &cntr);
-				}
-
-				//Odd
-				if (*ChMap++ == fComboGraph->GetSelected())
-				{
-					GetDWORD(BCOUNTER_OFFSET+(c*FIFO_BS), COUNTER_SIZE, Buffer, CopyData, &cntr);
-				}
-			}
-
 			fNumCounter->SetIntNumber(cntr);
 		}
 		
 
 		//SAVE CAL
-		if(fScal->GetState() != kButtonUp){
-			//save_count+= SaveCal(core->GetTBlocks(), core->GetChMap(), namevector, block_size, Buffer);
-			save_count+= SaveCounter(core->GetTBlocks(), core->GetChMap(), namevector, block_size, Buffer);
+		if((fScal->GetState() != kButtonUp) && ((fInterval->GetIntNumber() == 0) || (sIntervalEn == true))){
+			save_count+= SaveCal(core->GetTBlocks(), core->GetChMap(), namevector, block_size, Buffer);
+			sIntervalEn = false;
 		}
 
 		//SAVE WAVE
-		if(fSave->GetState() != kButtonUp){
+		if((fSave->GetState() != kButtonUp) && ((fInterval->GetIntNumber() == 0) || (sIntervalEn == true))){
 			save_count += SaveWave(core->GetTBlocks(), core->GetChMap(), namevector, block_size, Buffer);
+			sIntervalEn = false;
 		}
 
 		//SAVE TABLE
-		if(fTable->GetState() != kButtonUp){
+		if((fTable->GetState() != kButtonUp) && ((fInterval->GetIntNumber() == 0) || (sIntervalEn == true))){
 			
 			//If SAVE 3 seconds test is defined, Save Table should do NOTHING.
 			#ifndef SAVE3
@@ -932,6 +989,13 @@ bool MainFrame::Update(){
 				else
 					save_count+= SavePTable(core->GetTBlocks(), core->GetChMap(), namevector, block_size, Buffer);
 			#endif
+			sIntervalEn = false;
+		}
+
+		//SAVE COUNTER
+		if((fCounter->GetState() != kButtonUp) && ((fInterval->GetIntNumber() == 0) || (sIntervalEn == true))){
+			save_count+= SaveCounter(core->GetTBlocks(), core->GetChMap(), namevector, block_size, Buffer);
+			sIntervalEn = false;
 		}
 
 		//Test Save Count Limit

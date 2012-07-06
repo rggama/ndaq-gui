@@ -34,9 +34,9 @@
 //#define	MAX_EVENTS			(BLOCK_SIZE / EVENT_SIZE) 
 //#define MAX_TP				1
 
-#define _step_				2
+//#define _step_				2
 
-#define CAL_SMP_OFFSET		32	
+#define CAL_SMP_OFFSET		50	
 
 #define BASE_OFFSET			5
 #define BASE_INTEGRAL		10

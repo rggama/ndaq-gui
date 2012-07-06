@@ -117,10 +117,12 @@ private:
 	TGGroupFrame *fgroupCtrl;
 	TGNumberEntry *fCount;
 	TGNumberEntry *fTime;
+	TGNumberEntry *fInterval;
 	TGTextButton *fButtonRunMPD1;
 	TGCheckButton *fScal;
 	TGCheckButton *fSave;
 	TGCheckButton *fTable;
+	TGCheckButton *fCounter;
 
 	//Status Bar (child of MainFrame).
 	TGStatusBar *fStatusBar;
@@ -142,6 +144,11 @@ private:
 	bool saveCal;
 	bool saveWave;
 	bool saveTable;
+	unsigned int timeP;
+	unsigned int timeA;
+	unsigned int timer;
+	bool sIntervalEn;
+
 
 protected:
 
