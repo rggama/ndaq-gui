@@ -35,6 +35,7 @@ Core::Core()
 	lc_config = 0;
 	acq_config = 0;
 	t_blocks = 0;
+	t_channels = 0;
 	block_size = 65535;
 }
 
@@ -603,9 +604,10 @@ void Core::TestCoreRW(void)
 unsigned char Core::MapChannels(unsigned char config)
 {
 	unsigned char btst = 0x01;
-	unsigned char t_channels = 0;
 	unsigned char *chmap = &chmap_vector[0];
-	unsigned char *chadd = &chadd_vector[0];
+
+
+	t_channels = 0;
 
 	for(unsigned char i=0;i<MAX_CHANNELS;i++){
 		//if channel is enabled...
@@ -626,7 +628,7 @@ unsigned char Core::MapChannels(unsigned char config)
 	
 	chmap = &chmap_vector[0];
 	
-	
+	//DEBUG PURPOSE	
 	for (unsigned char c=0;c<t_blocks;c++)
 	{
 		printf("Mapped Channels: %u->%u\n", c, *chmap++);	

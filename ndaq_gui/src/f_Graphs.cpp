@@ -148,12 +148,12 @@ void fGraphsFrame::PlotGraph1(Int_t *x, Int_t *y)
 {
 	fEcanvas1->GetCanvas()->cd();	
 
-	graph1 = new TGraph(EVENT_SIZE, x, y);
+	//graph1 = new TGraph(EVENT_SIZE, x, y);
 	graph1->SetTitle("Event");
 	graph1->SetEditable(kFALSE);
 	graph1->SetLineColor(kRed);
 	graph1->GetYaxis()->SetRangeUser(-220, 50);
-	graph1->GetXaxis()->SetRangeUser(0, EVENT_SIZE);				
+	//graph1->GetXaxis()->SetRangeUser(0, EVENT_SIZE);				
 	graph1->Draw("AL");			
 
 	fEcanvas1->GetCanvas()->Update();	

@@ -1,14 +1,13 @@
 /**/
+
+//#define LINUX				1
+//#define MAX_TP			1								//Maximum Throughput
+
 #define DEBUG				0
 #define FDEBUG				1
 //#define SAVE3				0
 
-//#define LINUX				1
-
-#define CONFIG_CHAN			0xC0
-
 #define	MAX_CHANNELS		8
-#define	MAX_ADC_CHANNELS	8
 #define BUFFER				65536
 
 #define SLOT_SIZE			4								//Tamanho em bytes de 1 SLOT
@@ -19,7 +18,6 @@
 #define TDC_SIZE			1								//Tamanho em SLOTs de 2 canais de TDC
 #define COUNTER_SIZE		1								//Tamanho em SLOTs de 1 canal de COUNTER
 
-
 #define HEADER_OFFSET		0								//Offset no bloco de dados para HEADER (em SLOTs)
 #define TIMESTAMP_OFFSET	1								//Offset no bloco de dados para TIMESTAMP (em SLOTs)
 #define ADC_OFFSET			2								//Offset no bloco de dados para ADC (em SLOTs)
@@ -28,13 +26,6 @@
 
 //Block Size per FIFO (in SLOTs)
 #define FIFO_BS				(HEADER_SIZE+TIMESTAMP_SIZE+ADC_SIZE+(COUNTER_SIZE*2))
-
-#define EVENT_SIZE			128								//Quantidade de samples por trigger
-//#define BLOCK_SIZE			65472 //2112 //65536
-//#define	MAX_EVENTS			(BLOCK_SIZE / EVENT_SIZE) 
-//#define MAX_TP				1
-
-//#define _step_				2
 
 #define CAL_SMP_OFFSET		50	
 
@@ -50,7 +41,7 @@
 #define c16E4				16<<12
 #define c16E2				16<<4
 
-#define _J_(x)				(((*((x)+1)<<2)+*(x))<<6)		//10 bits construction.
+//#define _J_(x)			(((*((x)+1)<<2)+*(x))<<6)		//10 bits construction.
 //#define _J_(x)			(((*((x)+1)<<4)+*(x))<<4)		//12 bits construction.
 
 #define round(x)			((x)>=0?(long)((x)+0.5):(long)((x)-0.5))

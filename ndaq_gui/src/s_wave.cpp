@@ -429,7 +429,7 @@ unsigned short SaveCounter(unsigned char t_blocks, unsigned char *chmap, char *n
 	//Converting 'block_size' from byte to SLOT_SIZE.
 	block_size = block_size/SLOT_SIZE;
 
-	//Block counter - Each block contains 2 ADC channels. But we'll have to check if both are enabled 
+	//Block counter - Each block contains 2 Counter channels. But we'll have to check if both are enabled 
 	//for saving.
 
 	for (unsigned char c=0;c<t_blocks;c++)

@@ -233,6 +233,16 @@ MainFrame::MainFrame(const TGWindow *p, UInt_t w, UInt_t h) : TGMainFrame(p, w, 
 	fNumCounter->SetToolTipText("Mannnnnnyyyyyyyy Counts!");
   	fgroupMeas->AddFrame(fNumCounter);
 
+	//Create Count Rate Number Display
+	fgroupMeas->AddFrame(new TGLabel(fgroupMeas, new TGHotString("Count Rate(1/s):")));	
+	fNumCountRate = new TGNumberEntryField(fgroupMeas, -1, 0, TGNumberFormat::kNESRealTwo, 
+						TGNumberFormat::kNEAAnyNumber, TGNumberFormat::kNELNoLimits, 0, 1);
+	//fNumCountRate->SetIntNumber(10);
+	fNumCountRate->SetAlignment(kTextLeft);
+	fNumCountRate->Resize(85,20);
+	fNumCountRate->SetEnabled(kFALSE);
+  	fgroupMeas->AddFrame(fNumCountRate);
+
 	//Create RX Rate Display
 	fgroupMeas->AddFrame(new TGLabel(fgroupMeas, new TGHotString("RX Rate(KB/s):")));	
 	fNumRxRate = new TGNumberEntryField(fgroupMeas, -1, 0, TGNumberFormat::kNESRealTwo, 
@@ -244,15 +254,6 @@ MainFrame::MainFrame(const TGWindow *p, UInt_t w, UInt_t h) : TGMainFrame(p, w, 
 	fNumRxRate->SetEnabled(kFALSE);
   	fgroupMeas->AddFrame(fNumRxRate);
 
-	//Create Count Rate Number Display
-	fgroupMeas->AddFrame(new TGLabel(fgroupMeas, new TGHotString("Count Rate(1/s):")));	
-	fNumCountRate = new TGNumberEntryField(fgroupMeas, -1, 0, TGNumberFormat::kNESRealTwo, 
-						TGNumberFormat::kNEAAnyNumber, TGNumberFormat::kNELNoLimits, 0, 1);
-	//fNumCountRate->SetIntNumber(10);
-	fNumCountRate->SetAlignment(kTextLeft);
-	fNumCountRate->Resize(85,20);
-	fNumCountRate->SetEnabled(kFALSE);
-  	fgroupMeas->AddFrame(fNumCountRate);
 	
 	//MoveResize(x, y, width, height)
 	//fgroupMeas->SetLayoutManager(new TGVerticalLayout(fgroupMeas));
@@ -700,8 +701,8 @@ bool MainFrame::Update(){
 	unsigned int timestamp=0;
 	unsigned int cntr=0;
 
-	signed int x[EVENT_SIZE];
-	signed int y[EVENT_SIZE];
+	signed int x[ADC_SAMPLES];
+	signed int y[ADC_SAMPLES];
 
 	unsigned int residue=0;
 	unsigned int itime=0;
@@ -734,7 +735,7 @@ bool MainFrame::Update(){
 		GetDWORD(TIMESTAMP_OFFSET, TIMESTAMP_SIZE, Buffer, CopyData, &timestamp);
 		itime = (unsigned int) timestamp*0.1;		
 
-		//Time Dif stuff
+		//Time Dif and Save Interval stuff
 		timeP = timeA;
 		timeA = timestamp;
 		timer += (timeA - timeP);
@@ -829,7 +830,7 @@ bool MainFrame::Update(){
 		*/
 		/****************************************************************************************/
 
-		event_count = block_size/(FIFO_BS*core->GetTBlocks());
+		event_count = block_size/(FIFO_BS*SLOT_SIZE*core->GetTBlocks());
 
 		totalEvents=totalEvents+event_count;
 		
@@ -869,7 +870,7 @@ bool MainFrame::Update(){
 			//fEcanvas1->GetCanvas()->cd();
 			//if(graph1) delete graph1;
 			
-			graph1 = new TGraph(EVENT_SIZE, x, y);
+			graph1 = new TGraph(ADC_SAMPLES, x, y);
 			graph1->SetTitle("Event");
 			graph1->SetEditable(kFALSE);
 			//graph1->SetMarkerStyle(kFullDotMedium);
@@ -877,7 +878,7 @@ bool MainFrame::Update(){
 			//graph1->SetMarkerColor(kRed);
 			graph1->SetLineColor(kRed);
 			graph1->GetYaxis()->SetRangeUser(-600, 600);
-			graph1->GetXaxis()->SetRangeUser(0, (EVENT_SIZE)); //*TIMEBIN				
+			graph1->GetXaxis()->SetRangeUser(0, (ADC_SAMPLES)); //*TIMEBIN				
 			graph1->Draw("AL");			
 
 			fEcanvas1->GetCanvas()->Update();
@@ -964,18 +965,22 @@ bool MainFrame::Update(){
 			
 			//Counter
 			fNumCounter->SetIntNumber(cntr);
+			
+			//Count Rate
+			if (timestamp > 0)
+				fNumCountRate->SetNumber((cntr/timestamp)*10);
 		}
 		
 
 		//SAVE CAL
 		if((fScal->GetState() != kButtonUp) && ((fInterval->GetIntNumber() == 0) || (sIntervalEn == true))){
-			save_count+= SaveCal(core->GetTBlocks(), core->GetChMap(), namevector, block_size, Buffer);
+			save_count+= SaveCal(core->GetTBlocks(), core->GetChMap(), namevector, block_size, Buffer)/core->GetTChannels();
 			sIntervalEn = false;
 		}
 
 		//SAVE WAVE
 		if((fSave->GetState() != kButtonUp) && ((fInterval->GetIntNumber() == 0) || (sIntervalEn == true))){
-			save_count += SaveWave(core->GetTBlocks(), core->GetChMap(), namevector, block_size, Buffer);
+			save_count += SaveWave(core->GetTBlocks(), core->GetChMap(), namevector, block_size, Buffer)/core->GetTChannels();
 			sIntervalEn = false;
 		}
 
@@ -985,16 +990,16 @@ bool MainFrame::Update(){
 			//If SAVE 3 seconds test is defined, Save Table should do NOTHING.
 			#ifndef SAVE3
 				if (fbslope == false)			
-					save_count+= SaveNTable(core->GetTBlocks(), core->GetChMap(), namevector, block_size, Buffer);
+					save_count+= SaveNTable(core->GetTBlocks(), core->GetChMap(), namevector, block_size, Buffer)/core->GetTChannels();
 				else
-					save_count+= SavePTable(core->GetTBlocks(), core->GetChMap(), namevector, block_size, Buffer);
+					save_count+= SavePTable(core->GetTBlocks(), core->GetChMap(), namevector, block_size, Buffer)/core->GetTChannels();
 			#endif
 			sIntervalEn = false;
 		}
 
 		//SAVE COUNTER
 		if((fCounter->GetState() != kButtonUp) && ((fInterval->GetIntNumber() == 0) || (sIntervalEn == true))){
-			save_count+= SaveCounter(core->GetTBlocks(), core->GetChMap(), namevector, block_size, Buffer);
+			save_count+= SaveCounter(core->GetTBlocks(), core->GetChMap(), namevector, block_size, Buffer)/core->GetTChannels();
 			sIntervalEn = false;
 		}
 

@@ -28,6 +28,7 @@ private:
 	unsigned char lc_config;
 	unsigned char acq_config;
 	unsigned char t_blocks;
+	unsigned char t_channels;
 	unsigned short block_size;
 	unsigned char chmap_vector[MAX_CHANNELS];
 	unsigned char chadd_vector[MAX_CHANNELS];
@@ -49,6 +50,7 @@ public:
 	void SetRun(bool state);
 	bool GetRun() {return Run;}
 	unsigned char GetTBlocks() {return t_blocks;}
+	unsigned char GetTChannels() {return t_channels;}
 	unsigned short GetBS() {return block_size;}
 	void ToggleRun();
 	unsigned int Acq(unsigned char *Buffer);
