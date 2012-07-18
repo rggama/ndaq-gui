@@ -44,8 +44,8 @@ public:
 	int SetConnect(bool state);
 	void Initialize();
 	void SetChannels(unsigned char c_config);
-	void Core::SetTrigger(bool mode, bool slope, signed short th, unsigned char isel);	
-	void Core::MakeConfig(unsigned char cword, NDAQ_CONFIG *config);
+	void SetTrigger(bool mode, bool slope, signed short th, unsigned char isel);	
+	void MakeConfig(unsigned char cword, NDAQ_CONFIG *config);
 	void Config(NDAQ_CONFIG config);
 	void SetRun(bool state);
 	bool GetRun() {return Run;}
