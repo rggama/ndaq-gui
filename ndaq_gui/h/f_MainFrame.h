@@ -148,7 +148,7 @@ private:
 	unsigned int timeA;
 	unsigned int timer;
 	bool sIntervalEn;
-
+	unsigned int last_timestamp;
 
 protected:
 

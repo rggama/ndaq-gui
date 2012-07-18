@@ -53,6 +53,7 @@ MainFrame::MainFrame(const TGWindow *p, UInt_t w, UInt_t h) : TGMainFrame(p, w, 
 	timeA = 0;
 	timer = 0;
 	sIntervalEn = false;
+	last_timestamp = 0;
 
 	SetCleanup(kDeepCleanup);
 	
@@ -681,6 +682,7 @@ void MainFrame::FButtonRunMPD1()
 		running = true;
 		zero_seek = true;
 		timeP = timeA = timer = 0;
+		last_timestamp = 0;
 	}
 	
 }
@@ -704,7 +706,9 @@ bool MainFrame::Update(){
 	signed int x[ADC_SAMPLES];
 	signed int y[ADC_SAMPLES];
 
-	unsigned int residue=0;
+	double ftemp=0;
+	double gtemp=0;
+
 	unsigned int itime=0;
 	unsigned int stime=0;
 	
@@ -716,39 +720,45 @@ bool MainFrame::Update(){
 	double amplitude = 0;
 
 	/********************************************************************************************/
-
+	
+	//Checking for  Data Block...
 	if (core->GetRun() && running == true) block_size = core->Acq(Buffer);
 	
+	//If the Data Block has enough data...
 	if ( block_size > (core->GetBS()-1) ) 
 	{	
 		if (DEBUG) printf(" - Read Size: %u\n\n", block_size);
+		
+		/********************************************/
+		/*** Checking Header for THIS (one) block ***/
+		/********************************************/
 
 		GetDWORD(HEADER_OFFSET, HEADER_SIZE, Buffer, CopyData, &header);
-
+		
+		//if header value is wrong...
 		if (header != 0xAA55AA55)
 		{
 			printf("Header ERROR!\n\n");
 			FILEDEBUG("Header Error - 0x%08X\n", header, 0);
 			return true;			//descarta este bloco de dados.
 		}
+		
+		/**************************************************/
+		/*** Getting the timestamp value for this block ***/
+		/**************************************************/
 
 		GetDWORD(TIMESTAMP_OFFSET, TIMESTAMP_SIZE, Buffer, CopyData, &timestamp);
-		itime = (unsigned int) timestamp*0.1;		
+		
+		//If there was NO new timestamp, keep last timestamp.
+		if (timestamp == 0xFFFFFFFF)
+			timestamp = last_timestamp;
 
-		//Time Dif and Save Interval stuff
-		timeP = timeA;
-		timeA = timestamp;
-		timer += (timeA - timeP);
-		ltimer = (unsigned int) timer*0.1;
-		//printf("Time Dif: %08u\n", ltimer);
-		if ((fInterval->GetIntNumber() > 0) && (ltimer == fInterval->GetIntNumber()))
-		{
-			printf("Timer : %08u\n", ltimer);
-			timer = 0;
-			sIntervalEn = true;
-		}
-		if (fInterval->GetIntNumber() == 0) timer = 0;
+		//Saving timestamp;
+		last_timestamp = timestamp;
 
+		//temp for calculation.
+		ftemp = timestamp*0.1;	//0.1 because the timebase is 100ms and time unit is seconds.
+		itime = (unsigned int) ftemp;	//internal time - absolute time generated on CORE FPGA.
 
 		//ZERO SEEK!
 		if (zero_seek == true)
@@ -765,6 +775,25 @@ bool MainFrame::Update(){
 			zscounter=0;
 			bscounter=0;
 		}
+
+		//Time Dif and Save Interval stuff
+		timeP = timeA;
+		timeA = timestamp;
+		timer += (timeA - timeP);
+		
+		//temp for calculation.
+		ftemp = timer*0.1;	//timer increments on a 100ms basis and ltimer must increment on a second basis.
+		
+		//ltimer is the Save Interval timer.
+		ltimer = (unsigned int) ftemp;
+		//printf("Time Dif: %08u\n", ltimer);
+		if ((fInterval->GetIntNumber() > 0) && (ltimer == fInterval->GetIntNumber()))
+		{
+			printf("Timer : %08u\n", ltimer);
+			timer = 0;
+			sIntervalEn = true;
+		}
+		if (fInterval->GetIntNumber() == 0) timer = 0;
 		
 		//Time
 		fNumTime->SetIntNumber(itime);
@@ -867,7 +896,7 @@ bool MainFrame::Update(){
 			}
 			
 			//Initialize graph1
-			//fEcanvas1->GetCanvas()->cd();
+			fEcanvas1->GetCanvas()->cd();
 			//if(graph1) delete graph1;
 			
 			graph1 = new TGraph(ADC_SAMPLES, x, y);
@@ -968,7 +997,12 @@ bool MainFrame::Update(){
 			
 			//Count Rate
 			if (timestamp > 0)
-				fNumCountRate->SetNumber((cntr/timestamp)*10);
+			{
+				ftemp = cntr;
+				gtemp = timestamp;
+				ftemp = (ftemp/gtemp);
+				fNumCountRate->SetNumber(ftemp*10);
+			}
 		}
 		
 
