@@ -456,6 +456,7 @@ MainFrame::MainFrame(const TGWindow *p, UInt_t w, UInt_t h) : TGMainFrame(p, w, 
 		core->Initialize();
 		//new Thread();
 		fButtonRunMPD1->SetEnabled(kTRUE);
+		SettingsUpdate();
 	}else{
 	  	fStatusBar->SetText("Connection Failed.",0);
 		//fButtonApply->SetEnabled(kFALSE);
@@ -463,8 +464,6 @@ MainFrame::MainFrame(const TGWindow *p, UInt_t w, UInt_t h) : TGMainFrame(p, w, 
 	}
 
 	FILEDEBUG("\nLast Execution: %u. **************************************************\n", r, 0);
-
-	SettingsUpdate();
 }
 
 // Destructor
@@ -716,6 +715,7 @@ bool MainFrame::Update(){
 
 	signed short peak = 0;
 	signed int acc = 0;
+	double peak_out = 0;
 	double baseline = 0;
 	double amplitude = 0;
 
@@ -750,11 +750,13 @@ bool MainFrame::Update(){
 		GetDWORD(TIMESTAMP_OFFSET, TIMESTAMP_SIZE, Buffer, CopyData, &timestamp);
 		
 		//If there was NO new timestamp, keep last timestamp.
+		
 		if (timestamp == 0xFFFFFFFF)
 			timestamp = last_timestamp;
 
 		//Saving timestamp;
 		last_timestamp = timestamp;
+		
 
 		//temp for calculation.
 		ftemp = timestamp*0.1;	//0.1 because the timebase is 100ms and time unit is seconds.
@@ -787,7 +789,7 @@ bool MainFrame::Update(){
 		//ltimer is the Save Interval timer.
 		ltimer = (unsigned int) ftemp;
 		//printf("Time Dif: %08u\n", ltimer);
-		if ((fInterval->GetIntNumber() > 0) && (ltimer == fInterval->GetIntNumber()))
+		if ((fInterval->GetIntNumber() > 0) && (ltimer >= (unsigned int)fInterval->GetIntNumber()))
 		{
 			printf("Timer : %08u\n", ltimer);
 			timer = 0;
@@ -938,7 +940,7 @@ bool MainFrame::Update(){
 						GetLSWORD(ADC_OFFSET+PK_OFFSET+(c*FIFO_BS), PK_INTERVAL, Buffer, GetPPeak, &peak);
 					}
 					//2) We have to consider ADC calibration for the final value.
-					peak = peak*A+B;
+					peak_out = peak*A+B;
 					
 					//Baseline:
 					//1) 'acc' is the sumatorie of BASE_INTEGRAL ADC samples starting at BASE_OFFSET.
@@ -968,7 +970,7 @@ bool MainFrame::Update(){
 						GetMSWORD(ADC_OFFSET+PK_OFFSET+(c*FIFO_BS), PK_INTERVAL, Buffer, GetPPeak, &peak);
 					}
 					//2) We have to consider ADC calibration for the final value.
-					peak = peak*A+B;
+					peak_out = peak*A+B;
 					
 					//Baseline:
 					//1) 'acc' is the sumatorie of BASE_INTEGRAL ADC samples starting at BASE_OFFSET.
@@ -987,16 +989,17 @@ bool MainFrame::Update(){
 			fNumBaseline->SetNumber(baseline);
 			
 			//Amplitude: It's the Peak - Baseline.
-			fNumAmplitude->SetNumber(peak - (baseline));
+			fNumAmplitude->SetNumber(peak_out - (baseline));
 			
 			//Charge
 			//fNumCharge->SetNumber(get_charge(EVENT_SIZE,base,yCAL));
 			
 			//Counter
-			fNumCounter->SetIntNumber(cntr);
+			if (cntr != 0xFFFFFFFF)
+				fNumCounter->SetIntNumber(cntr);
 			
 			//Count Rate
-			if (timestamp > 0)
+			if ((timestamp > 0) && (cntr != 0xFFFFFFFF))
 			{
 				ftemp = cntr;
 				gtemp = timestamp;
