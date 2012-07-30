@@ -212,6 +212,7 @@ unsigned short SaveNTable(unsigned char t_blocks, unsigned char *chmap, char *na
 
 	signed short peak = 32767; //Maximum for a signed short.
 	signed int acc = 0;
+	double peak_out = 0;
 	double baseline = 0;
 	double amplitude = 0;
 
@@ -236,7 +237,7 @@ unsigned short SaveNTable(unsigned char t_blocks, unsigned char *chmap, char *na
 				//1) We will find the waveform's NEGATIVE peak value starting at PK_OFFSET.
 				GetLSWORD(ADC_OFFSET+PK_OFFSET+block_index, PK_INTERVAL, buffer, GetNPeak, &peak);
 				//2) We have to consider ADC calibration for the final value.
-				peak = peak*A+B;
+				peak_out = peak*A+B;
 
 				//Baseline:
 				//1) 'acc' is the sumatorie of BASE_INTEGRAL ADC samples starting at BASE_OFFSET.
@@ -247,7 +248,7 @@ unsigned short SaveNTable(unsigned char t_blocks, unsigned char *chmap, char *na
 				baseline = baseline*A+B;
 
 				//Amplitude: It's the Peak - Baseline.
-				amplitude = peak - (baseline);
+				amplitude = peak_out - (baseline);
 				if (fprintf(file, "%0.2f\t%0.2f\n", baseline, amplitude) > 0) counter++;
 
 				//reseting vars.
@@ -278,7 +279,7 @@ unsigned short SaveNTable(unsigned char t_blocks, unsigned char *chmap, char *na
 				//1) We will find the waveform's NEGATIVE peak value starting at PK_OFFSET.
 				GetMSWORD(ADC_OFFSET+PK_OFFSET+block_index, PK_INTERVAL, buffer, GetNPeak, &peak);
 				//2) We have to consider ADC calibration for the final value.
-				peak = peak*A+B;
+				peak_out = peak*A+B;
 
 				//Baseline:
 				//1) 'acc' is the sumatorie of BASE_INTEGRAL ADC samples starting at BASE_OFFSET.
@@ -289,7 +290,7 @@ unsigned short SaveNTable(unsigned char t_blocks, unsigned char *chmap, char *na
 				baseline = baseline*A+B;
 
 				//Amplitude: It's the Peak - Baseline.
-				amplitude = peak - (baseline);
+				amplitude = peak_out - (baseline);
 				if (fprintf(file, "%0.2f\t%0.2f\n", baseline, amplitude) > 0) counter++;
 
 				//reseting vars.
@@ -318,6 +319,7 @@ unsigned short SavePTable(unsigned char t_blocks, unsigned char *chmap, char *na
 
 	signed short peak = -32768; //Minimum for a signed short.
 	signed int acc = 0;
+	double peak_out = 0;
 	double baseline = 0;
 	double amplitude = 0;
 
@@ -342,7 +344,7 @@ unsigned short SavePTable(unsigned char t_blocks, unsigned char *chmap, char *na
 				//1) We will find the waveform's NEGATIVE peak value starting at PK_OFFSET.
 				GetLSWORD(ADC_OFFSET+PK_OFFSET+block_index, PK_INTERVAL, buffer, GetPPeak, &peak);
 				//2) We have to consider ADC calibration for the final value.
-				peak = peak*A+B;
+				peak_out = peak*A+B;
 
 				//Baseline:
 				//1) 'acc' is the sumatorie of BASE_INTEGRAL ADC samples starting at BASE_OFFSET.
@@ -353,7 +355,7 @@ unsigned short SavePTable(unsigned char t_blocks, unsigned char *chmap, char *na
 				baseline = baseline*A+B;
 
 				//Amplitude: It's the Peak - Baseline.
-				amplitude = peak - (baseline);
+				amplitude = peak_out - (baseline);
 				if (fprintf(file, "%0.2f\t%0.2f\n", baseline, amplitude) > 0) counter++;
 
 				//reseting vars.
@@ -384,7 +386,7 @@ unsigned short SavePTable(unsigned char t_blocks, unsigned char *chmap, char *na
 				//1) We will find the waveform's NEGATIVE peak value starting at PK_OFFSET.
 				GetMSWORD(ADC_OFFSET+PK_OFFSET+block_index, PK_INTERVAL, buffer, GetPPeak, &peak);
 				//2) We have to consider ADC calibration for the final value.
-				peak = peak*A+B;
+				peak_out = peak*A+B;
 
 				//Baseline:
 				//1) 'acc' is the sumatorie of BASE_INTEGRAL ADC samples starting at BASE_OFFSET.
@@ -399,7 +401,7 @@ unsigned short SavePTable(unsigned char t_blocks, unsigned char *chmap, char *na
 				if (fprintf(file, "%0.2f\t%0.2f\n", baseline, amplitude) > 0) counter++;
 
 				//reseting vars.
-				peak = -32768;
+				peak_out = -32768;
 				acc = 0;
 			}
 			fclose(file);
@@ -444,7 +446,8 @@ unsigned short SaveCounter(unsigned char t_blocks, unsigned char *chmap, char *n
 			{
 				GetDWORD(TIMESTAMP_OFFSET+block_index, TIMESTAMP_SIZE, buffer, CopyData, &timestamp);
 				GetDWORD(ACOUNTER_OFFSET+block_index, COUNTER_SIZE, buffer, CopyData, &cntr);
-				if (fprintf(file, "%08u\t%08u\n", timestamp, cntr) > 0) counter++;
+				if ((timestamp != 0xFFFFFFFF) && (cntr != 0xFFFFFFFF))
+					if (fprintf(file, "%08u\t%08u\n", timestamp, cntr) > 0) counter++;
 			}
 			fclose(file);
 			//next filename.
@@ -465,7 +468,8 @@ unsigned short SaveCounter(unsigned char t_blocks, unsigned char *chmap, char *n
 			{
 				GetDWORD(TIMESTAMP_OFFSET+block_index, TIMESTAMP_SIZE, buffer, CopyData, &timestamp);
 				GetDWORD(BCOUNTER_OFFSET+block_index, COUNTER_SIZE, buffer, CopyData, &cntr);
-				if (fprintf(file, "%08u\t%08u\n", timestamp, cntr) > 0) counter++;
+				if ((timestamp != 0xFFFFFFFF) && (cntr != 0xFFFFFFFF))
+					if (fprintf(file, "%08u\t%08u\n", timestamp, cntr) > 0) counter++;
 			}
 			fclose(file);
 			//next filename.
