@@ -7,13 +7,16 @@
 #include "ftd2xx.linux.h"
 #endif
 
+#include <stdio.h>
+#include <string.h>
 #include "ftd2xx.inc"
 
 // Construtor
 MPD::MPD(int num)
 {
 	connected=false;
-	numDev = num;
+	numDev = DeviceInfoList();
+
 }
 //Destrutor
 MPD::~MPD()
@@ -24,10 +27,11 @@ MPD::~MPD()
 int MPD::connect(bool con)
 {	
 int ret;
-	
+
   if(con==true){
-		CloseFtd(numDev);
-		//DeviceInfoList();
+		//CloseFtd(numDev);
+		
+		
 		ret = OpenFtd(numDev);
 		if(ret==1){
 			connected = true;
@@ -108,4 +112,12 @@ int MPD::GetSize()
 } 
 int MPD::clearBufferRX(){
 	return clearRX(numDev);
+}
+
+int MPD::clearBufferTX(){
+	return clearTX(numDev);
+}
+
+int MPD::ResetFTDevice(){
+	return ResetDevice(numDev);
 }

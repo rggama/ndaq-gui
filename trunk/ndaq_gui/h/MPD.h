@@ -36,4 +36,6 @@ public:
 	int GetNumDev();
 	int GetSize();
 	int clearBufferRX();
+	int clearBufferTX();
+	int ResetFTDevice();
 };
