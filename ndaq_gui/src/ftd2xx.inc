@@ -13,45 +13,51 @@
 //Global Handler
 FT_HANDLE	ftHandle[MAX_DEVICES];
 
-
-//Debug Function?
-//int DeviceInfoList()
-//{
-//	DWORD	iNumDevs = 0;
-//	FT_STATUS	ftStatus;
-//	FT_DEVICE_LIST_INFO_NODE *devInfo;
-//	char * 	pcBufLD[MAX_DEVICES + 1];
-//	char 	cBufLD[MAX_DEVICES][64];
-//	int i;
-//	
-//	//
-//	// create the device information list
-//	//
-//	ftStatus = FT_CreateDeviceInfoList(&iNumDevs);
-//	if (ftStatus == FT_OK)
-//		return 0;
-//	
-//	//
-//	// allocate storage for list based on numDevs
-//	//
-//	//devInfo = (FT_DEVICE_LIST_INFO_NODE*)malloc(sizeof(FT_DEVICE_LIST_INFO_NODE)*iNumDevs);
-//	
-//	//
-//	// get the device information list
-//	//
-//	//ftStatus = FT_GetDeviceInfoList(devInfo,&iNumDevs);
-//	/*
-//	for(i = 0; i < MAX_DEVICES; i++) {
-//		pcBufLD[i] = cBufLD[i];
-//	}
-//	pcBufLD[MAX_DEVICES] = NULL;
-//	*/
-//	ftStatus = FT_ListDevices(pcBufLD, &iNumDevs, FT_LIST_ALL | FT_OPEN_BY_SERIAL_NUMBER);
-////	ftStatus = FT_ListDevices(pcBufLD, &iNumDevs, FT_LIST_ALL | FT_OPEN_BY_DESCRIPTION);
-//
-//	
-//	return 0;
-//}
+int DeviceInfoList()
+{
+	FT_STATUS ftStatus; 
+	FT_DEVICE_LIST_INFO_NODE *devInfo; 
+	DWORD numDevs; 
+	int id;
+	 
+	// create the device information list 
+	ftStatus = FT_CreateDeviceInfoList(&numDevs); 
+	 
+	if (ftStatus == FT_OK) { 
+	  printf("Number of devices is %d\n",numDevs); 
+	} 
+	 
+	if (numDevs > 0) { 
+	  // allocate storage for list based on numDevs 
+	  devInfo = 
+	(FT_DEVICE_LIST_INFO_NODE*)malloc(sizeof(FT_DEVICE_LIST_INFO_NODE)*numDevs);  
+	  // get the device information list 
+	  ftStatus = FT_GetDeviceInfoList(devInfo,&numDevs);  
+	  if (ftStatus == FT_OK) { 
+		for (unsigned int i = 0; i < numDevs; i++) { 
+		  printf("Dev %d:\n",i);  
+		  printf("  Flags=0x%x\n",devInfo[i].Flags);  
+		  printf("  Type=0x%x\n",devInfo[i].Type);  
+		  printf("  ID=0x%x\n",devInfo[i].ID);  
+		  printf("  LocId=0x%x\n",devInfo[i].LocId);  
+		  printf("  SerialNumber=%s\n",devInfo[i].SerialNumber);  
+		  printf("  Description=%s\n",devInfo[i].Description);  
+		  printf("  ftHandle=0x%x\n",devInfo[i].ftHandle);
+		  
+		  if (strcmp(devInfo[i].Description, "NDAQ - Standalone Mode") == 0)
+		  {
+			printf("\nHello NDAQ!\n\n");
+			id = i;
+		  }
+		  
+		} 
+	  }
+	  else return -1;
+	}
+	else return -1;
+	
+	return id; 
+}
 
 //código modificado para se conectar a mais de um MPD
 int OpenFtd(int i)
@@ -61,7 +67,7 @@ int OpenFtd(int i)
     DWORD dwEventDWord=0;
     
 	FT_STATUS	ftStatus;
-	ftStatus = FT_GetStatus(ftHandle[i], &dwRxBytes, &dwTxBytes, &dwEventDWord);
+	//ftStatus = FT_GetStatus(ftHandle[i], &dwRxBytes, &dwTxBytes, &dwEventDWord);
 
 	if((ftStatus = FT_Open(i,&ftHandle[i])) != FT_OK)
 		return 0;
@@ -113,10 +119,27 @@ void ReadFtd(int i, unsigned char *data, DWORD &dwBytesRead, DWORD dwRxSize)
 	ftStatus = FT_Read(ftHandle[i], data, dwRxSize, &dwBytesRead);
 }
 
-
 int clearRX(int i)
 {	
 	FT_STATUS ftStatus = FT_Purge(ftHandle[i],FT_PURGE_RX);
+	if (ftStatus != FT_OK)  
+		return 0;
+	
+	return 1;
+}
+
+int clearTX(int i)
+{	
+	FT_STATUS ftStatus = FT_Purge(ftHandle[i],FT_PURGE_TX);
+	if (ftStatus != FT_OK)  
+		return 0;
+	
+	return 1;
+}
+
+int ResetDevice(int i)
+{	
+	FT_STATUS ftStatus = FT_ResetDevice(ftHandle[i]);
 	if (ftStatus != FT_OK)  
 		return 0;
 	

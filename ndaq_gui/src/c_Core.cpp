@@ -61,14 +61,18 @@ int Core::SetConnect(bool state)
 
 void Core::Initialize()
 {
+	printf("ResetFT: %u\n", fmpd0->ResetFTDevice());
+
 	fmpd0->SetFlowControl();
 
 	fmpd0->SetBlock(65536);
 	//fmpd0->SetBlock(64);
 
 	fmpd0->SetLatency(1);
-
+	
+	fmpd0->clearBufferTX();
 	CheckClear();
+	
 	WriteReg(0xAA, 0x55, 90);		//Resets Vme FPGA
 	WriteReg(0x80, 0x80, 91);		//Grant we'll have command responses.
 	WriteCore(0xAA,0x55, 92);		//Resets Core FPGA
