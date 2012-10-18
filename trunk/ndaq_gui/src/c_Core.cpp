@@ -180,7 +180,7 @@ void Core::MakeConfig(unsigned char cword, NDAQ_CONFIG *config)
 	if (((cword & 0x01) == 0x01) || ((cword & 0x02) == 0x02))
 	{		
 		//enable everything in a block for FIFO 1.
-		config->bc1 = 0x37;
+		config->bc1 = 0x3F;
 		//Turn ON FIFO 1 transfer on VME's databuilder.
 		config->vc = 0x01;
 		t_blocks++;
@@ -197,7 +197,7 @@ void Core::MakeConfig(unsigned char cword, NDAQ_CONFIG *config)
 	if (((cword & 0x04) == 0x04) || ((cword & 0x08) == 0x08))
 	{
 		//enable everything in a block for FIFO 2.
-		config->bc2 = 0x37;
+		config->bc2 = 0x3F;
 		//Turn ON FIFO 2 transfer on VME's databuilder.
 		config->vc |= 0x02;
 		t_blocks++;
@@ -214,7 +214,7 @@ void Core::MakeConfig(unsigned char cword, NDAQ_CONFIG *config)
 	if (((cword & 0x10) == 0x10) || ((cword & 0x20) == 0x20))
 	{	
 		//enable everything in a block for FIFO 3.
-		config->bc3 = 0x37;
+		config->bc3 = 0x3F;
 		//Turn ON FIFO 3 transfer on VME's databuilder.
 		config->vc |= 0x04;
 		t_blocks++;
@@ -231,7 +231,7 @@ void Core::MakeConfig(unsigned char cword, NDAQ_CONFIG *config)
 	if (((cword & 0x40) == 0x40) || ((cword & 0x80) == 0x80))
 	{
 		//enable everything in a block for FIFO 4.
-		config->bc4 = 0x37;
+		config->bc4 = 0x3F;
 		//Turn ON FIFO 4 transfer on VME's databuilder.
 		config->vc |= 0x08;
 		t_blocks++;
@@ -246,7 +246,7 @@ void Core::MakeConfig(unsigned char cword, NDAQ_CONFIG *config)
 
 	//VME Databuilder WORDS per FIFO (in SLOT Size).
 	//Fixed by now.
-	config->vs = 0x83; //Its the size (in SLOTs) of 'everything enabled' for each FIFO block;
+	config->vs = 0x85; //Its the size (in SLOTs) of 'everything enabled' for each FIFO block;
 
 	#ifdef MAX_TP
 		block_size = BUFFER/(t_blocks*FIFO_BS*SLOT_SIZE);

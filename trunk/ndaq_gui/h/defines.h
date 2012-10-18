@@ -15,17 +15,19 @@
 #define TIMESTAMP_SIZE		1								//Tamanho em SLOTs de TIMESTAMP
 #define ADC_SAMPLES			128								//Quantidade de amostras por trigger para ADC
 #define ADC_SIZE			ADC_SAMPLES * 1					//Tamanho em SLOTs de 2 canais de ADC
-#define TDC_SIZE			1								//Tamanho em SLOTs de 2 canais de TDC
+#define TDC_SIZE			1								//Tamanho em SLOTs de 1 canal de TDC
 #define COUNTER_SIZE		1								//Tamanho em SLOTs de 1 canal de COUNTER
 
 #define HEADER_OFFSET		0								//Offset no bloco de dados para HEADER (em SLOTs)
 #define TIMESTAMP_OFFSET	1								//Offset no bloco de dados para TIMESTAMP (em SLOTs)
 #define ADC_OFFSET			2								//Offset no bloco de dados para ADC (em SLOTs)
-#define ACOUNTER_OFFSET		130								//Offset no bloco de dados para COUNTER A(em SLOTs)
-#define BCOUNTER_OFFSET		131								//Offset no bloco de dados para COUNTER B(em SLOTs)
+#define ATDC_OFFSET			130								//Offset no bloco de dados para TDC A(em SLOTs)
+#define BTDC_OFFSET			131								//Offset no bloco de dados para TDC B(em SLOTs)
+#define ACOUNTER_OFFSET		132								//Offset no bloco de dados para COUNTER A(em SLOTs)
+#define BCOUNTER_OFFSET		133								//Offset no bloco de dados para COUNTER B(em SLOTs)
 
 //Block Size per FIFO (in SLOTs)
-#define FIFO_BS				(HEADER_SIZE+TIMESTAMP_SIZE+ADC_SIZE+(COUNTER_SIZE*2))
+#define FIFO_BS				(HEADER_SIZE+TIMESTAMP_SIZE+ADC_SIZE+(TDC_SIZE*2)+(COUNTER_SIZE*2))
 
 #define CAL_SMP_OFFSET		50	
 
