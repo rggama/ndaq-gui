@@ -700,6 +700,7 @@ bool MainFrame::Update(){
 
 	unsigned int header=0;
 	unsigned int timestamp=0;
+	unsigned int tdc=0;
 	unsigned int cntr=0;
 
 	signed int x[ADC_SAMPLES];
@@ -859,6 +860,24 @@ bool MainFrame::Update(){
 		printf("*******************************\n");
 		printf("*******************************\n");
 		*/
+		
+		// TDC Debug
+		unsigned short c=1;
+
+		for (unsigned short i=0; i<536; i+=134)
+		{
+			GetDWORD(i+ATDC_OFFSET, ADC_SIZE, Buffer, CopyData, &tdc);
+			printf("TDC Ch%u:0x%08X - %u\n", c, tdc, tdc);
+
+			GetDWORD(i+BTDC_OFFSET, ADC_SIZE, Buffer, CopyData, &tdc);
+			printf("TDC Ch%u:0x%08X - %u\n", c+1, tdc, tdc);
+			
+			c+=2;
+		}
+
+		printf("*******************************\n");
+		printf("*******************************\n");
+
 		/****************************************************************************************/
 
 		event_count = block_size/(FIFO_BS*SLOT_SIZE*core->GetTBlocks());
