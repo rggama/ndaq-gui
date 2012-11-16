@@ -286,7 +286,7 @@ void Core::SetRun(bool state)
 	if(state){
 		WriteReg(0x80, 0x80, 0);					//Grant we'll have command responses.
 
-		//TestWCore(0x87, 0x00);					//ADC Power-up - Already Powered.
+		TestWCore(0x87, 0x0F, 0);					//ADC Power-up: Powering up the 4 ADCs.
 		
 		TestWCore(0x81, 0x7F, 1);					//127(+1) samples per trigger (config).
 		
@@ -320,7 +320,7 @@ void Core::SetRun(bool state)
 		
 		TestWCore(0x40, 0x00, 10);					//Core DataBuilder Disable.
 		
-		//TestWCore(0x87, 0x00);					//ADC Power-down.
+		TestWCore(0x87, 0x00, 0);					//ADC Power-down?: Powering down the 4 ADCs.
 				
 		//TestWReg(0x80, 0x80);						//Vme Readout Disable (DataBuilder disable) - Already issued!
 		
