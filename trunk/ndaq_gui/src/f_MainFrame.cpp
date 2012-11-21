@@ -862,14 +862,15 @@ bool MainFrame::Update(){
 		*/
 		
 		// TDC Debug
+		
 		unsigned short c=1;
 
 		for (unsigned short i=0; i<536; i+=134)
 		{
-			GetDWORD(i+ATDC_OFFSET, ADC_SIZE, Buffer, CopyData, &tdc);
+			GetDWORD(i+ATDC_OFFSET, TDC_SIZE, Buffer, CopyData, &tdc);
 			printf("TDC Ch%u:0x%08X - %u\n", c, tdc, tdc);
 
-			GetDWORD(i+BTDC_OFFSET, ADC_SIZE, Buffer, CopyData, &tdc);
+			GetDWORD(i+BTDC_OFFSET, TDC_SIZE, Buffer, CopyData, &tdc);
 			printf("TDC Ch%u:0x%08X - %u\n", c+1, tdc, tdc);
 			
 			c+=2;
@@ -877,6 +878,7 @@ bool MainFrame::Update(){
 
 		printf("*******************************\n");
 		printf("*******************************\n");
+		
 
 		/****************************************************************************************/
 
@@ -1023,7 +1025,8 @@ bool MainFrame::Update(){
 				ftemp = cntr;
 				gtemp = timestamp;
 				ftemp = (ftemp/gtemp);
-				fNumCountRate->SetNumber(ftemp*10);
+				//fNumCountRate->SetNumber(ftemp*10);
+				fNumCountRate->SetNumber(cntr);
 			}
 		}
 		
