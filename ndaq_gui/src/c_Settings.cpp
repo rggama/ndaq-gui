@@ -10,8 +10,8 @@ bool				GraphsOpen;
 Settings::Settings()
 {
 	//Future: Read Settings File.
-	c_config = 0xFF; //1;
-	c_total = 8; //1;
+	c_config = 1; //0xFF; //1;
+	c_total = 1; //8; //1;
 	GraphsOpen = false;
 }
 
