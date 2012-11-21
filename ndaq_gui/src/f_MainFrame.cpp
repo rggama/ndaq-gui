@@ -1025,8 +1025,7 @@ bool MainFrame::Update(){
 				ftemp = cntr;
 				gtemp = timestamp;
 				ftemp = (ftemp/gtemp);
-				//fNumCountRate->SetNumber(ftemp*10);
-				fNumCountRate->SetNumber(cntr);
+				fNumCountRate->SetNumber(ftemp*10);
 			}
 		}
 		

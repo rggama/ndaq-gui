@@ -287,9 +287,7 @@ void Core::SetRun(bool state)
 		WriteReg(0x80, 0x80, 0);					//Grant we'll have command responses.
 
 		TestWCore(0x87, 0x0F, 0);					//ADC Power-up: Powering up the 4 ADCs.
-
-		//Sleep(1000); //	INSERTED in 16/11/12 to fix bug on turning on ADCs
-		
+	
 		TestWCore(0x81, 0x7F, 1);					//127(+1) samples per trigger (config).
 		
 		TestWCore(0x89, 0x01, 2);					//ACQ Reset Assert.
