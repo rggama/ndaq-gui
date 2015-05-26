@@ -1,0 +1,1 @@
+Graphic user interface for the NDAQ 'core' routines and the CAN based 'slow control' system. For the initial development, 'core' and 'slow control' code is going to be added here. NDAQ stands for a 8 channel digitizer module for physics research. CAN stands for Controller Area Nework.
